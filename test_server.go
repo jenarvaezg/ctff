@@ -23,7 +23,7 @@ func sayhelloName(w http.ResponseWriter, r *http.Request) {
 
 func createAccount(w http.ResponseWriter, r *http.Request) {
     if r.Method == "GET" {
-        t, _ := template.ParseFiles("forms/create_account.gtpl")
+        t, _ := template.ParseFiles("html/create_account.gtpl")
         t.Execute(w, nil)
     } else {
         r.ParseForm()
@@ -43,5 +43,4 @@ func main() {
     if err != nil {
         log.Fatal("ListenAndServe: ", err)
     }
-    fmt.Println("EH")
 }
