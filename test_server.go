@@ -1,38 +1,56 @@
 package main
 
 import (
+	"io"
+	"time"
     "fmt"
+    "strconv"
     "net/http"
     "html/template"
-    "strings"
+//     "strings"
     "log"
     "crypto/sha512"
+    "crypto/md5"
     "encoding/base64"
+    "database/sql"
+    _ "github.com/go-sql-driver/mysql"
 )
 
 
 func sayhelloName(w http.ResponseWriter, r *http.Request) {
-    r.ParseForm()  // parse arguments, you have to call this by yourself
-    fmt.Println(r.Form)  // print form information in server side
-    for k, v := range r.Form {
-        fmt.Println("key:", k)
-        fmt.Println("val:", strings.Join(v, ""))
-    }
-    fmt.Fprintf(w, "Hello andrei!") // send data to client side
+    t, _ := template.ParseFiles("html/root.gtpl")
+    t.Execute(w, nil)
+    //fmt.Fprintf(w, "Hello andrei!") // send data to client side
 }
 
 func createAccount(w http.ResponseWriter, r *http.Request) {
     if r.Method == "GET" {
+    	crutime := time.Now().Unix()
+    	h := md5.New()
+    	io.WriteString(h, strconv.FormatInt(crutime, 10))
+    	token := fmt.Sprintf("%x", h.Sum(nil))
         t, _ := template.ParseFiles("html/create_account.gtpl")
-        t.Execute(w, nil)
+        t.Execute(w, token)
     } else {
         r.ParseForm()
-        mail := string(template.HTMLEscapeString(r.Form.Get("mail")))
+        token := r.Form.Get("csrf")
+        if token != "" {
+        	//check later
+        } else {
+        	fmt.Fprintf(w, "No CSRF Token\n")
+        	return
+        }
+        if len(r.Form.Get("email")) == 0 || len(r.Form.Get("password")) == 0 {
+        	fmt.Fprintf(w, "Email and password can't be empty\n")
+        	return
+        }
+        email := string(template.HTMLEscapeString(r.Form.Get("email")))
+        fmt.Println(email)
         hasher := sha512.New()
         hasher.Write([]byte(r.Form.Get("password")))
         password := base64.URLEncoding.EncodeToString(hasher.Sum(nil))
-        fmt.Fprintf(w, "%s\n", mail)
-        fmt.Fprintf(w, "%s\n", password)
+        fmt.Println(password)
+        fmt.Fprintln(w, "OK")
     }
 }
 

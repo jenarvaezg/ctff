@@ -1,9 +1,18 @@
 2015.11.03
 First sketch of the project's architecture.
 TODO: choose technologies that will be used.
+
 2015.11.09
 Second sketch, golang will be the language used for almost everything, database might be SQLite.
 TODO: Think about database's layout.
 TODO(1 month form now): Webapp's alpha - user creation, login, first challenge...
+
 2015.11.10
 Starting to play around with GO. Only 1 form form, "register" but it does nothing yet. Now I know how to get sha512 in golang :)
+
+2015.11.13
+Added a button to root page which redirects to the create_account form. Added CSRF token (yet to verify with cookie). For the sql driver ran `go get github.com/go-sql-driver/mysql`
+TODO: run mysql as normal user (maybe it is like that already)
+TODO: create table
+
+
