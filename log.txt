@@ -15,4 +15,11 @@ Added a button to root page which redirects to the create_account form. Added CS
 TODO: run mysql as normal user (maybe it is like that already)
 TODO: create table
 
+2015.11.14
+Added login form, first table schema (email 'pk', password, created_date). Now can add users, login "works".
+TODO: Create user type and return it in order to have a /user page
+TODO: Add password directives
+TODO: Create /user page
+TODO: Create /created page
+
 
