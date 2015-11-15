@@ -16,10 +16,9 @@ TODO: run mysql as normal user (maybe it is like that already)
 TODO: create table
 
 2015.11.14
-Added login form, first table schema (email 'pk', password, created_date). Now can add users, login "works".
-TODO: Create user type and return it in order to have a /user page
+Added login form, first table schema (email 'pk', password, created_date). Now can add users, login works. CSRF will be checked from now on. Cookies!! Created /created page. Created /user/:username pages :)
 TODO: Add password directives
-TODO: Create /user page
-TODO: Create /created page
+TODO: Logout button/(Login/Create) toggle depending on session cookie
+TODO: Session cookie should be encrypted or something
 
 

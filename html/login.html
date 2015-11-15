@@ -4,7 +4,7 @@
 </head>
 <body>
 <form action="/login" method="post">
-    Email:<input type="text" name="email" placeholder="joe@example.com">
+    Email/Username:<input type="text" name="identifier" placeholder="joe@example.com/joe">
     Password:<input type="password" name="password">
     <input type="hidden" name="csrf" value="{{.}}">
     <input type="submit" value="Login!">

@@ -4,7 +4,8 @@
 </head>
 <body>
 <form action="/create_account" method="post">
-    Email:<input type="text" name="email" placeholder="joe@example.com">
+    Email:<input type="text" name="email" placeholder="joe@example.com"><br>
+    Username:<input type="text" name="username" placeholder="joe"><br>
     Password:<input type="password" name="password">
     <input type="hidden" name="csrf" value="{{.}}">
     <input type="submit" value="Create!">
