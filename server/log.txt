@@ -25,4 +25,6 @@ TODO: Session cookie should be encrypted or something
 Added user directory, started working on session management, this will handle session cookie's "or something"
 TODO: Finish sessions management
 
-
+2015.11.17
+Added /logout, but it is really bugyg, added some buttons at all pages. Added session managemente but it works really badly. Routing is broken
+TODO: Check gorilla, it has everything, session control, secure cookis, routing, etc

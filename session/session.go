@@ -22,13 +22,13 @@ type Manager struct {
 type Provider interface {
 	SessionInit(sid string) (Session, error)
 	SessionRead(sid string) (Session, error)
-	SessionDestroy(sid string) (Session, error)
+	SessionDestroy(sid string) error
 	SessionGC(maxLifeTime int64)
 }
 
 type Session interface {
 	Set(key, value interface{}) error
-	Get(key, value interface{}) interface{}
+	Get(key interface{}) interface{}
 	Delete(key interface{}) error
 	SessionID() string
 }
@@ -36,7 +36,7 @@ type Session interface {
 var globalSessions *Manager
 var provides = make(map[string]Provider)
 
-/*func Register(name string, provider provider) {
+func Register(name string, provider Provider) {
 	if provider == nil {
 		panic("session: Register provide is nil")
 	}
@@ -44,7 +44,7 @@ var provides = make(map[string]Provider)
 		panic("session: Register called twice for provide " + name)
 	}
 	provides[name] = provider
-}*/
+}
 
 func NewManager(provideName, cookieName string, maxlifetime int64) (*Manager, error) {
 	provider, ok := provides[provideName]
