@@ -1,0 +1,13 @@
+<html>
+<head>
+<title>Welcome</title>
+</head>
+<body>
+	<H1>Registered users:</H1>
+	<ul>
+	{{ range $value := . }}
+		<li><strong><a href="/user/{{ $value }}">{{ $value }}</strong></li>
+	{{end}}
+	</ul>
+</body>
+</html>
