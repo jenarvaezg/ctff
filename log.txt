@@ -28,3 +28,7 @@ TODO: Finish sessions management
 2015.11.17
 Added /logout, but it is really bugyg, added some buttons at all pages. Added session managemente but it works really badly. Routing is broken
 TODO: Check gorilla, it has everything, session control, secure cookis, routing, etc
+
+2015.11.27
+Migrated to gorilla. Now we have a challenges database and /challenge and challenge/challenge_id]. First challenge done.
+TODO: Add attempts table and maybe success table(?)
