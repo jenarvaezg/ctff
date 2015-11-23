@@ -1,0 +1,26 @@
+<html>
+<head>
+<title>Challenge: {{.Title}}</title>
+</head>
+<body>
+	<H2>Challenge info:</H2><br>
+	<ul>
+	<li>Description: {{.Description}}</li>
+	<li>MaxPoints: {{.MaxScore}}</li>
+	</ul>
+	Introduce aqui el hash sha512 de la solucion
+	<form action="/challenge/{{ .Id }}" method="post">
+  		<input type="text" name="solution">
+  		<input type="submit" value="Submit">
+  	</form>
+	<a href="/">
+		<button type="button">Go back!</button>
+	</a>
+	<a href="/user">
+		<button type="button">User directory</button>
+	</a>
+	<a href="/challenge">
+		<button type="button">Challenges!</button>
+	</a>
+</body>
+</html>
