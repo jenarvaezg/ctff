@@ -27,8 +27,15 @@ TODO: Finish sessions management
 
 2015.11.17
 Added /logout, but it is really bugyg, added some buttons at all pages. Added session managemente but it works really badly. Routing is broken
-TODO: Check gorilla, it has everything, session control, secure cookis, routing, etc
+TODO: Check gorilla, it has everything, session control, secure cookies, routing, etc
 
-2015.11.27
+2015.11.20
 Migrated to gorilla. Now we have a challenges database and /challenge and challenge/challenge_id]. First challenge done.
 TODO: Add attempts table and maybe success table(?)
+
+2015.11.24
+Created attmepts database and some operations, can now do challenges (only first one) and get score for them (it), user page also shows all of the user's finished challenges.
+TODO: Still have to add password directives
+TODO: Add another challenge
+TOOD: Add Hints and edit score depending on number of hints used, maybe on a database(?)
+TODO: MAYBE add csrf to solution submit?

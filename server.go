@@ -2,11 +2,8 @@ package main
 
 import (
 	"crypto/sha512"
-	"database/sql"
-	"encoding/base64"
-	"errors"
+	"encoding/base64"	
 	"fmt"
-	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
 	"html/template"
@@ -23,6 +20,8 @@ type user struct {
 	Username string
 	Created  string
 	IsYou    bool
+	Finished map[string]challenge_link
+	Score int
 }
 
 type challenge struct{
@@ -34,134 +33,14 @@ type challenge struct{
 	Hints []string
 }
 
-func handlerRoot(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" {
-		http.NotFound(w, r)
-		return
-	}
-	session, _ := store.Get(r, "session-name")
-	t, _ := template.ParseFiles("html/root.html")
-	t.Execute(w, session.Values["username"] != nil)
+type challenge_link struct{
+	Title string
+	Id int
+	Score int
 }
 
 
-func addUser(mail, password, username string) error {
-	db, err := sql.Open("mysql", "root@/tfg?charset=utf8")
-	checkErr(err)
-	defer db.Close()
 
-	//insert
-	stmt, err := db.Prepare("INSERT userinfo SET email=?,password=?,created=?,username=?")
-	checkErr(err)
-
-	date := time.Now().String()
-
-	_, err = stmt.Exec(mail, password, date, username)
-	return err
-
-}
-
-func verifyUser(identifier, password string) (username string) {
-	db, err := sql.Open("mysql", "root@/tfg?charset=utf8")
-	checkErr(err)
-	defer db.Close()
-
-	stmt, err := db.Prepare(
-		"SELECT username FROM userinfo WHERE (email=? or username=?) and password=?")
-	checkErr(err)
-
-	rows, err := stmt.Query(identifier, identifier, password)
-	checkErr(err)
-	if !rows.Next() {
-		return ""
-	}
-	rows.Scan(&username)
-	return
-}
-
-func getUsers() (users []string) {
-	db, err := sql.Open("mysql", "root@/tfg?charset=utf8")
-	checkErr(err)
-	defer db.Close()
-
-	stmt, err := db.Prepare(
-		"SELECT username FROM userinfo")
-	checkErr(err)
-
-	rows, err := stmt.Query()
-	checkErr(err)
-
-	for rows.Next() {
-		var username string
-		err = rows.Scan(&username)
-		checkErr(err)
-		users = append(users, username)
-	}
-	return
-}
-
-func getChallengesTitles() (challenges []challenge) {
-	db, err := sql.Open("mysql", "root@/tfg?charset=utf8")
-	checkErr(err)
-	defer db.Close()
-
-	stmt, err := db.Prepare(
-		"SELECT Title, C_Id FROM challenges")
-	checkErr(err)
-
-	rows, err := stmt.Query()
-	checkErr(err)
-
-	for rows.Next() {
-		var c challenge
-		err = rows.Scan(&c.Title, &c.Id)
-		checkErr(err)
-		challenges = append(challenges, c)
-	}
-	return
-}
-
-func getUser(username string) (u user, err error) {
-	db, err := sql.Open("mysql", "root@/tfg?charset=utf8")
-	checkErr(err)
-	defer db.Close()
-	stmt, err := db.Prepare(
-		"SELECT * FROM userinfo WHERE username=?")
-	checkErr(err)
-	rows, err := stmt.Query(username)
-	if !rows.Next() {
-		err = errors.New("Not found")
-		return
-	}
-	var disposable string
-	err = rows.Scan(&u.Email, &disposable, &u.Created, &u.Username)
-	return
-}
-
-func getChallenge(id int) (c challenge, err error){
-	db, err := sql.Open("mysql", "root@/tfg?charset=utf8")
-	checkErr(err)
-	defer db.Close()
-	stmt, err := db.Prepare(
-		"SELECT Title, Description, MaxScore, Solution, C_Id " +
-		"FROM challenges WHERE C_Id=?")
-	checkErr(err)
-
-	rows, err := stmt.Query(id)
-	if !rows.Next() {
-		err = errors.New("Not found")
-		return
-	}
-	err = rows.Scan(&c.Title, &c.Description, &c.MaxScore,
-					&c.Solution, &c.Id)
-	return
-}
-
-func checkErr(err error) {
-	if err != nil {
-		log.Fatal(err)
-	}
-}
 
 func validEmail(email string) bool {
 	match, _ := regexp.MatchString(
@@ -188,6 +67,7 @@ func validPassword(password string) bool {
 	return true
 }
 
+
 func giveFormTemplate(path string, w http.ResponseWriter) {
 	crutime := time.Now().Unix()
 	h := sha512.New()
@@ -205,6 +85,19 @@ func getSha512(s string) string {
 	hasher.Write([]byte(s))
 	return base64.URLEncoding.EncodeToString(hasher.Sum(nil))
 }
+
+func handlerRoot(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+	session, _ := store.Get(r, "session")
+	t, _ := template.ParseFiles("html/root.html")
+	t.Execute(w, session.Values["username"] != nil)
+}
+
+
+
 
 func handlerCreateAccount(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
@@ -243,7 +136,7 @@ func handlerCreateAccount(w http.ResponseWriter, r *http.Request) {
 
 
 func handlerLogin(w http.ResponseWriter, r *http.Request) {
-	session, _ := store.Get(r, "session-name")
+	session, _ := store.Get(r, "session")
 
 	if session.Values["username"] != nil {
 		http.Redirect(w, r, "/", 301)
@@ -273,14 +166,14 @@ func handlerLogin(w http.ResponseWriter, r *http.Request) {
 
 func handlerUsers(w http.ResponseWriter, r *http.Request){
 	
-	users := getUsers()
+	users := getUsernames()
 	t, _ := template.ParseFiles("html/users.html")
 	t.Execute(w, users)
 }
 
 
 func handlerUser(w http.ResponseWriter, r *http.Request) {
-	session, _ := store.Get(r, "session-name")
+	session, _ := store.Get(r, "session")
 	username := session.Values["username"]
 	if username == nil {
 		fmt.Fprintf(w, "You must be logged in!\n")
@@ -289,7 +182,7 @@ func handlerUser(w http.ResponseWriter, r *http.Request) {
 	target := mux.Vars(r)["username"]
 	user, err := getUser(target)
 	if err != nil {
-		fmt.Fprintf(w, "User %s not found :(\n", target)
+		fmt.Fprintf(w, "User %s not found :(\n%s", target, err)
 		return
 	}
 	if username == user.Username {
@@ -305,35 +198,40 @@ func handlerCreated(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlerLogout(w http.ResponseWriter, r *http.Request) {
-	session, _ := store.Get(r, "session-name")
+	session, _ := store.Get(r, "session")
 	session.Options = &sessions.Options{MaxAge: -1, Path: "/"}
 	session.Save(r, w)
 	http.Redirect(w, r, "/", 301)
 }
 
 func handlerChallenges(w http.ResponseWriter, r *http.Request) {
-	session, _ := store.Get(r, "session-name")
+	session, _ := store.Get(r, "session")
 	username := session.Values["username"]
 	if username == nil {
 		fmt.Fprintf(w, "You must be logged in!\n")
 		return
 	}
-	challenges := getChallengesTitles()
+	challenges := getChallengesLinks()
 	t, _ := template.ParseFiles("html/challenges.html")
 	t.Execute(w, challenges)
 }
 
 func handlerChallenge(w http.ResponseWriter, r *http.Request) {
-	session, _ := store.Get(r, "session-name")
+	session, _ := store.Get(r, "session")
 	username := session.Values["username"]
 	if username == nil {
 		fmt.Fprintf(w, "You must be logged in!\n")
 		return
 	}
 	target, err:= strconv.Atoi(mux.Vars(r)["challenge_id"])
+	user, _ := getUser(username.(string))
 	challenge, err := getChallenge(target)
 	if err != nil {
 		fmt.Fprintf(w, "challenge %d not found :(\n", target)
+		return
+	}
+	if userFinishedChallenge(user.Email, target) {
+		fmt.Fprintf(w, "You already finished this challenge!")
 		return
 	}
 	if r.Method == "GET" {
@@ -341,19 +239,34 @@ func handlerChallenge(w http.ResponseWriter, r *http.Request) {
 		t.Execute(w, challenge)
 	} else if r.Method == "POST" {
 		r.ParseForm()
-		fmt.Println(r.Form)
 		solution := r.Form.Get("solution")
-		fmt.Println(solution)
-		if solution == challenge.Solution {
-			user, _ := getUser(username.(string))
-			successfulChallenge(w, r, user, challenge,)
+		succesful := solution == challenge.Solution
+		addAtempt(user.Email, challenge.Id, succesful, challenge.MaxScore) /*TODO HINTS AFFECT MAX SCORE */
+		session, _ := store.Get(r, "challenge")
+		if succesful {
+			session.Values["challenge"] = challenge.Id //TODO CHANGE THIS TOO
+			session.Save(r, w)
+			updateScore(user.Email, challenge.MaxScore)
+			http.Redirect(w, r, "/success", 301)
 		}
+		fmt.Fprintf(w, "Wrong answer :(")
 	}
 }
 
-func successfulChallenge(w http.ResponseWriter, r *http.Request,
-						u user, c challenge){
-	fmt.Fprintln(w, "FANFARE")
+func handlerSuccess(w http.ResponseWriter, r *http.Request){
+	session, _ := store.Get(r, "challenge")
+	fmt.Println(session.Values["challenge"])
+	if  session.Values["challenge"] == nil {
+		http.Redirect(w, r, "/", 301)
+		return
+	} 
+
+	challenge, _ := getChallenge(session.Values["challenge"].(int))
+	session.Options = &sessions.Options{MaxAge: -1, Path: "/"}
+	session.Save(r, w)
+	t, _ := template.ParseFiles("html/success.html")
+	t.Execute(w, challenge)
+
 }
 
 var store = sessions.NewCookieStore([]byte("EEEEH"))
@@ -376,6 +289,7 @@ func main() {
 	r.HandleFunc("/challenge/{challenge_id}", handlerChallenge)
 	r.HandleFunc("/created", handlerCreated)
 	r.HandleFunc("/logout", handlerLogout)
+	r.HandleFunc("/success", handlerSuccess)
 
 	err = http.ListenAndServeTLS(":9090", "server.pem", "server.key", r) // set listen port
 

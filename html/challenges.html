@@ -6,7 +6,7 @@
 	<H1>Current Challenges:</H1>
 	<ul>
 	{{ range $value := . }}
-		<li><strong><a href="/challenge/{{ $value.Id }}">{{ $value.Title }}</strong></li>
+		<li><strong><a href="/challenge/{{ $value.Id }}">{{ $value.Title }} Points: {{ $value.Score }}</a></strong></li>
 	{{end}}
 	</ul>
 	<a href="/">

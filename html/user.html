@@ -11,6 +11,12 @@
 	<li>Username: {{.Username}}</li>
 	<li>Email: {{.Email}}</li>
 	<li>Joined: {{.Created}}</li>
+	<li>Points: {{.Score}}
+	<li>Challenges finished:<ul>
+		{{ range $value := .Finished }}
+			<li><strong><a href="/challenge/{{ $value.Id }}">{{ $value.Title }} Points: {{ $value.Score }}</a></strong></li>
+		{{end}}
+		</ul>
 	</ul>
 	<a href="/">
 		<button type="button">Go back!</button>
