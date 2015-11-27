@@ -255,7 +255,6 @@ func handlerChallenge(w http.ResponseWriter, r *http.Request) {
 
 func handlerSuccess(w http.ResponseWriter, r *http.Request){
 	session, _ := store.Get(r, "challenge")
-	fmt.Println(session.Values["challenge"])
 	if  session.Values["challenge"] == nil {
 		http.Redirect(w, r, "/", 301)
 		return
