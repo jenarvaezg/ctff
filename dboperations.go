@@ -128,7 +128,8 @@ func updateScore(email string, score int) {
 	rows.Next()
 	var prevScore int
 	rows.Scan(&prevScore)
-	prevScore += score
+
+	score += prevscore
 
 	stmt, err = db.Prepare("UPDATE userinfo SET Score=? WHERE email=?")
 	checkErr(err)
