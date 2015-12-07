@@ -1,0 +1,22 @@
+<html>
+<head>
+<title>Ranking</title>
+</head>
+<body>
+	<H1>Ranking:</H1><br>
+	<ul>
+	{{ range $value := .}}
+			<li><strong><a href="/user/{{ $value.Username }}">{{ $value.Username }} Points: {{ $value.Score }}</a></strong></li>
+	{{end}}
+	</ul>
+	<a href="/">
+		<button type="button">Go back!</button>
+	</a>
+	<a href="/user">
+		<button type="button">User directory</button>
+	</a>
+	<a href="/challenge">
+		<button type="button">Challenges!</button>
+	</a>
+</body>
+</html>

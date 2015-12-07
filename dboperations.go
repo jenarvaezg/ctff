@@ -137,6 +137,24 @@ func updateScore(email string, score int) {
 
 }
 
+func getRanking() (users []user) {
+	db, err := sql.Open("mysql", "tfg:passwordtfg@/tfg?charset=utf8")
+	checkErr(err)
+	defer db.Close()	
+	stmt, err := db.Prepare("SELECT username, Score from userinfo " +
+		"ORDER BY Score DESC")
+	checkErr(err)
+	rows, err := stmt.Query()
+	for rows.Next() {
+		var u User
+		err = rows.Scan(&u.Username, &u.Score)
+		checkErr(err)
+		users = append(users, username)
+	}
+	return
+
+}
+
 
 /***********************
 * Challenge operations *

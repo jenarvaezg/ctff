@@ -39,3 +39,15 @@ TODO: Still have to add password directives
 TODO: Add another challenge
 TOOD: Add Hints and edit score depending on number of hints used, maybe on a database(?)
 TODO: MAYBE add csrf to solution submit?
+
+
+2015.11.27
+Added 2 more challenges, setup database at IEEE server
+
+2015.12.01
+First tries at setting up virtual machine, have 2 levels done already. Password level00: elNivelCeroEsEz
+level01: ojoConLosPermisos
+level02: laVariablePathEsPeligrosa
+Using vagrant, still trying it in order to see how to user it programatically
+TODO: Vagrant tutorial(?)
+TODO: Set up tmp to be -> drws-wx-wt

@@ -39,9 +39,6 @@ type challenge_link struct{
 	Score int
 }
 
-
-
-
 func validEmail(email string) bool {
 	match, _ := regexp.MatchString(
 		`^([\w\.\_]{2,64})@(\w{1,}).([a-z]{2,4})$`, email)
@@ -95,8 +92,6 @@ func handlerRoot(w http.ResponseWriter, r *http.Request) {
 	t, _ := template.ParseFiles("html/root.html")
 	t.Execute(w, session.Values["username"] != nil)
 }
-
-
 
 
 func handlerCreateAccount(w http.ResponseWriter, r *http.Request) {
@@ -265,8 +260,18 @@ func handlerSuccess(w http.ResponseWriter, r *http.Request){
 	session.Save(r, w)
 	t, _ := template.ParseFiles("html/success.html")
 	t.Execute(w, challenge)
-
 }
+
+func handlerRanking(w http.ResponseWriter, r *http.Request){
+	session, _ := store.Get(r, "challenge")
+	if  session.Values["challenge"] == nil {
+		http.Redirect(w, r, "/", 301)
+		return
+	}
+
+	ranking := getRanking()
+	t, _ = template.ParseFiles("html/ranking.html")
+	t.Execute(ranking)
 
 var store = sessions.NewCookieStore([]byte("EEEEH"))
 
@@ -289,6 +294,7 @@ func main() {
 	r.HandleFunc("/created", handlerCreated)
 	r.HandleFunc("/logout", handlerLogout)
 	r.HandleFunc("/success", handlerSuccess)
+	r.handleFunc("/ranking", handlerRanking)
 
 	err = http.ListenAndServeTLS(":9090", "server.pem", "server.key", r) // set listen port
 
