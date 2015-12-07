@@ -44,7 +44,7 @@ type challenge_link struct{
 
 func validEmail(email string) bool {
 	match, _ := regexp.MatchString(
-		`^([\w\.\_]{2,10})@(\w{1,}).([a-z]{2,4})$`, email)
+		`^([\w\.\_]{2,64})@(\w{1,}).([a-z]{2,4})$`, email)
 	return match
 }
 
