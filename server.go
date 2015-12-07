@@ -263,15 +263,15 @@ func handlerSuccess(w http.ResponseWriter, r *http.Request){
 }
 
 func handlerRanking(w http.ResponseWriter, r *http.Request){
-	session, _ := store.Get(r, "challenge")
-	if  session.Values["challenge"] == nil {
-		http.Redirect(w, r, "/", 301)
-		return
-	}
+	session, _ := store.Get(r, "session")
+        if session.Values["username"] == nil {
+                http.Redirect(w, r, "/", 301)
+        }
 
 	ranking := getRanking()
-	t, _ = template.ParseFiles("html/ranking.html")
-	t.Execute(ranking)
+	t, _ := template.ParseFiles("html/ranking.html")
+	t.Execute(w, ranking)
+}
 
 var store = sessions.NewCookieStore([]byte("EEEEH"))
 
@@ -294,7 +294,7 @@ func main() {
 	r.HandleFunc("/created", handlerCreated)
 	r.HandleFunc("/logout", handlerLogout)
 	r.HandleFunc("/success", handlerSuccess)
-	r.handleFunc("/ranking", handlerRanking)
+	r.HandleFunc("/ranking", handlerRanking)
 
 	err = http.ListenAndServeTLS(":9090", "server.pem", "server.key", r) // set listen port
 

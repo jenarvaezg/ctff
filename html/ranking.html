@@ -3,11 +3,11 @@
 <title>Ranking</title>
 </head>
 <body>
-	<H1>Ranking:</H1><br>
+	<H1>Ranking:</H1>
 	<ul>
-	{{ range $value := .}}
-			<li><strong><a href="/user/{{ $value.Username }}">{{ $value.Username }} Points: {{ $value.Score }}</a></strong></li>
-	{{end}}
+	{{ range  . }}
+                        <li><strong><a href="/user/{{ .Username }}">{{ .Username }} Points: {{ .Score }}</a></strong></li>
+        {{end}} 
 	</ul>
 	<a href="/">
 		<button type="button">Go back!</button>

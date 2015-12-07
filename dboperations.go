@@ -129,7 +129,7 @@ func updateScore(email string, score int) {
 	var prevScore int
 	rows.Scan(&prevScore)
 
-	score += prevscore
+	score += prevScore
 
 	stmt, err = db.Prepare("UPDATE userinfo SET Score=? WHERE email=?")
 	checkErr(err)
@@ -146,10 +146,10 @@ func getRanking() (users []user) {
 	checkErr(err)
 	rows, err := stmt.Query()
 	for rows.Next() {
-		var u User
+		var u user
 		err = rows.Scan(&u.Username, &u.Score)
 		checkErr(err)
-		users = append(users, username)
+		users = append(users, u)
 	}
 	return
 
