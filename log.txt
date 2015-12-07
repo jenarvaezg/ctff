@@ -51,3 +51,20 @@ level02: laVariablePathEsPeligrosa
 Using vagrant, still trying it in order to see how to user it programatically
 TODO: Vagrant tutorial(?)
 TODO: Set up tmp to be -> drws-wx-wt
+
+2015.12.04
+Modified vm, added 2 new levels
+Password level02: ensambladorEsTuAmigo
+Password level03: laVariablePathEsPeligrosa
+Password level04: bienvenidoAlBufferOverflow
+Can use vagrant package to export/import vms
+TODO: set up tmp
+
+2015.12.07
+Added ranking and more information to the webpage.
+Challenges now show number of succesful tries and all tries.
+Added wargame's levels to the database
+Every attempt now updates number of tries at challange table
+Set up tmp to be - drws-wx-wt
+TODO: Hints, think about how to dinamically launch vms
+
