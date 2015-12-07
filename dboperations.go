@@ -17,7 +17,7 @@ func checkErr(err error) {
 
 
 /***********************
-* Challenge operations *
+* User operations      *
 ***********************/
 
 func addUser(mail, password, username string) error {
@@ -166,7 +166,7 @@ func getChallengesLinks() (challenges []challenge_link) {
 	defer db.Close()
 
 	stmt, err := db.Prepare(
-		"SELECT Title, C_Id, MaxScore  FROM challenges")
+		"SELECT Title, C_Id, MaxScore, Ntries, NSuccess  FROM challenges")
 	checkErr(err)
 
 	rows, err := stmt.Query()
@@ -174,12 +174,19 @@ func getChallengesLinks() (challenges []challenge_link) {
 
 	for rows.Next() {
 		var c challenge_link
-		err = rows.Scan(&c.Title, &c.Id, &c.Score)
+		err = rows.Scan(&c.Title, &c.Id, &c.Score,
+						&c.NTries, &c.NSuccess)
 		checkErr(err)
+		if c.NTries != 0 {
+			c.SuccessPercentage = 100 * float32(c.NSuccess) / float32(c.NTries)
+		}
 		challenges = append(challenges, c)
 	}
 	return
 }
+
+
+
 
 func getChallenge(id int) (c challenge, err error){
 	db, err := sql.Open("mysql", "tfg:passwordtfg@/tfg?charset=utf8")
@@ -202,7 +209,7 @@ func getChallenge(id int) (c challenge, err error){
 
 
 /***********************
-* Challenge operations *
+* Attempts operations  *
 ***********************/
 
 func addAtempt(email string, c_id int, succesful bool, score int) {
@@ -217,8 +224,30 @@ func addAtempt(email string, c_id int, succesful bool, score int) {
 	date := time.Now().String()
 
 	_, _ = stmt.Exec(date, email, c_id, succesful, score)
+	stmt, _ = db.Prepare("SELECT NTries from challenges WHERE " +
+                                "c_id=?")
+        rows, _ := stmt.Query(c_id)
+        rows.Next()
+        var ntries int
+        rows.Scan(&ntries)
+        ntries++
+        stmt, _ = db.Prepare("UPDATE challenges SET NTries=? WHERE C_Id=?")
+        stmt.Exec(ntries, c_id)
+
+	if succesful {
+		stmt, _ = db.Prepare("SELECT NSuccess from challenges WHERE " + 
+				"c_id=?")
+		rows, _ := stmt.Query(c_id)
+		rows.Next()
+		var nsuccess int
+		rows.Scan(&nsuccess)
+		nsuccess++
+		stmt, err = db.Prepare("UPDATE challenges SET NSuccess=? WHERE C_Id=?")
+		stmt.Exec(nsuccess, c_id)
+	}
 	
 }
+
 
 func getSuccesfulAttempts(email string) (scores []int, ids []int) {
 	db, err := sql.Open("mysql", "tfg:passwordtfg@/tfg?charset=utf8")

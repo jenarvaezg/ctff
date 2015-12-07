@@ -33,10 +33,14 @@ type challenge struct{
 	Hints []string
 }
 
+
 type challenge_link struct{
 	Title string
 	Id int
 	Score int
+	NSuccess int
+	NTries int
+	SuccessPercentage float32
 }
 
 func validEmail(email string) bool {
