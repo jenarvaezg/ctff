@@ -193,7 +193,7 @@ func getChallenge(id int) (c challenge, err error){
 	checkErr(err)
 	defer db.Close()
 	stmt, err := db.Prepare(
-		"SELECT Title, Description, MaxScore, Solution, C_Id " +
+		"SELECT Title, Description, MaxScore, Solution, C_Id, Path " +
 		"FROM challenges WHERE C_Id=?")
 	checkErr(err)
 
@@ -203,7 +203,7 @@ func getChallenge(id int) (c challenge, err error){
 		return
 	}
 	err = rows.Scan(&c.Title, &c.Description, &c.MaxScore,
-					&c.Solution, &c.Id)
+					&c.Solution, &c.Id, &c.Path)
 	return
 }
 

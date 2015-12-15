@@ -8,6 +8,9 @@
 	<li>Description: {{.Description}}</li>
 	<li>MaxPoints: {{.MaxScore}}</li>
 	</ul>
+	<iframe src="{{ .Path }}" style="border:none" sandbox>
+  		<p>Your browser does not support iframes.</p>
+	</iframe>
 	Introduce aqui el hash sha512 de la solucion (Base64)
 	<form action="/challenge/{{ .Id }}" method="post">
   		<input type="text" name="solution">

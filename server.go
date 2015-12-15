@@ -31,6 +31,7 @@ type challenge struct{
 	MaxScore int
 	Solution string
 	Hints []string
+	Path string
 }
 
 
