@@ -3,16 +3,16 @@
 <title>Challenge: {{.Title}}</title>
 </head>
 <body>
+	<H1>{{.Title}}</H1>
 	<H2>Challenge info:</H2><br>
 	<ul>
-	<li>Description: {{.Description}}</li>
 	<li>MaxPoints: {{.MaxScore}}</li>
+	<li>Description: {{.Description}}
 	</ul>
-	<iframe src="{{ .Path }}" style="border:none" sandbox>
-  		<p>Your browser does not support iframes.</p>
-	</iframe>
-	Introduce aqui el hash sha512 de la solucion (Base64)
 	<form action="/challenge/{{ .Id }}" method="post">
+		<button name="launch" type="submit" value="launch">LAUNCH</button><br>
+
+  	{{.LaunchText}}<br>
   		<input type="text" name="solution">
   		<input type="submit" value="Submit">
   	</form>
