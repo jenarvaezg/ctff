@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"errors"
+	"html/template"
 	"log"
 	"time"
 
@@ -192,9 +193,25 @@ func getChallenge(id int) (c challenge, err error) {
 		err = errors.New("Not found")
 		return
 	}
-	err = rows.Scan(&c.Title, &c.Description, &c.MaxScore,
+	var s string
+	err = rows.Scan(&c.Title, &s, &c.MaxScore,
 		&c.Solution, &c.Id, &c.Path, &c.Category)
+	c.Description = template.HTML(s)
 	return
+}
+
+func addChallenge(c challenge, creator string) {
+	db, err := sql.Open("mysql", "tfg:passwordtfg@/tfg?charset=utf8")
+	checkErr(err)
+	defer db.Close()
+	stmt, err := db.Prepare("INSERT challenges SET " +
+		"Title=?, Description=?, MaxScore=?, Nhints=?, Solution=?," +
+		"Category=?, Creator=?, Path=?")
+	checkErr(err)
+	_, err = stmt.Exec(c.Title, string(c.Description), c.MaxScore, 0, c.Solution,
+		c.Category, creator, c.Path)
+	checkErr(err)
+
 }
 
 /***********************

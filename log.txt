@@ -68,3 +68,12 @@ Every attempt now updates number of tries at challange table
 Set up tmp to be - drws-wx-wt
 TODO: Hints, think about how to dinamically launch vms
 
+
+2016.01.13
+Modified databse schema and the way thinks work a little.
+Added launch button, after pressing launch, the challenge's start_challenge file will be executed and it's output will be inserted into the /challenge page
+First sketch of add_challenge form
+
+2016.01.14
+Finished the add_challenge stuff, only missing a little thing, see TODO. Fixed a bug about cookies.
+TODO: Create files with execution permission. DOCKER AND SHIT. Add Stop Button!

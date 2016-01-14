@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -59,6 +60,16 @@ func (c challenge) launch(user string) template.HTML {
 }
 
 func (c challenge) addToEnvironment() error {
+	path := ChallengesPath + "/" + c.Category + "/" + c.Path
+	err := os.MkdirAll(path, os.FileMode(0755))
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+	f, _ := os.Create(path + "/start_challenge")
+	f.Close()
+	f, _ = os.Create(path + "/stop_challenge")
+	f.Close()
 	return nil
 }
 
@@ -72,6 +83,10 @@ func challengeFromForm(form url.Values) (challenge, error) {
 	c.Description = template.HTML(form.Get("description"))
 	if c.Title == "" {
 		return c, errors.New("No Description")
+	}
+	c.Path = form.Get("path")
+	if c.Path == "" {
+		return c, errors.New("No path")
 	}
 	c.MaxScore, err = strconv.Atoi(form.Get("points"))
 	if err != nil || c.MaxScore <= 0 || c.MaxScore > MaxChallengeScore {
@@ -116,6 +131,14 @@ func validPassword(password string) bool {
 func checkLogged(w http.ResponseWriter, r *http.Request) *sessions.Session {
 	session, _ := store.Get(r, "session")
 	if session.Values["username"] == nil {
+		http.Redirect(w, r, "/", 301)
+	}
+	return session
+}
+
+func checkNotLogged(w http.ResponseWriter, r *http.Request) *sessions.Session {
+	session, _ := store.Get(r, "session")
+	if session.Values["username"] != nil {
 		http.Redirect(w, r, "/", 301)
 	}
 	return session
@@ -185,7 +208,7 @@ func handlerCreateAccount(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlerLogin(w http.ResponseWriter, r *http.Request) {
-	session := checkLogged(w, r)
+	session := checkNotLogged(w, r)
 	if r.Method == "GET" {
 		giveFormTemplate("html/login.html", w)
 	} else if r.Method == "POST" {
@@ -257,6 +280,7 @@ func handlerChallenge(w http.ResponseWriter, r *http.Request) {
 	challenge, err := getChallenge(target)
 	if err != nil {
 		fmt.Fprintf(w, "challenge %d not found :(\n", target)
+		fmt.Fprintln(w, err)
 		return
 	}
 	challenge.Path = ChallengesPath + "/" + challenge.Category + "/" + challenge.Path
@@ -266,7 +290,6 @@ func handlerChallenge(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.Method == "GET" {
 		t, err := template.ParseFiles("html/challenge.html")
-		fmt.Println(challenge.Description)
 		if err != nil {
 			fmt.Fprint(w, err)
 			return
@@ -299,8 +322,16 @@ func handlerChallenge(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlerSuccess(w http.ResponseWriter, r *http.Request) {
-	session := checkLogged(w, r)
-	challenge, _ := getChallenge(session.Values["challenge"].(int))
+	checkLogged(w, r)
+	session, _ := store.Get(r, "challenge")
+	id, ok := session.Values["challenge"].(int)
+	if !ok {
+		fmt.Println("NOT OK")
+	}
+	challenge, err := getChallenge(id)
+	if err != nil {
+		fmt.Println(err)
+	}
 	session.Options = &sessions.Options{MaxAge: -1, Path: "/"}
 	session.Save(r, w)
 	t, _ := template.ParseFiles("html/success.html")
@@ -315,7 +346,7 @@ func handlerRanking(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlerAddChallenge(w http.ResponseWriter, r *http.Request) {
-	checkLogged(w, r)
+	session := checkLogged(w, r)
 	if r.Method == "GET" {
 		t, _ := template.ParseFiles("html/add_challenge.html")
 		t.Execute(w, nil)
@@ -327,6 +358,7 @@ func handlerAddChallenge(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		challenge.addToEnvironment()
+		addChallenge(challenge, session.Values["username"].(string))
 	}
 }
 
