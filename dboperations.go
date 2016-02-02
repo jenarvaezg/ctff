@@ -184,8 +184,8 @@ func getChallenge(id int) (c challenge, err error) {
 	checkErr(err)
 	defer db.Close()
 	stmt, err := db.Prepare(
-		"SELECT Title, Description, MaxScore, Solution, C_Id, Path, Category " +
-			"FROM challenges WHERE C_Id=?")
+		"SELECT Title, Description, MaxScore, "+/*, Solution, */"C_Id, Path, Category " +
+			/*"Solution_Type */"FROM challenges WHERE C_Id=?")
 	checkErr(err)
 
 	rows, err := stmt.Query(id)
@@ -195,21 +195,21 @@ func getChallenge(id int) (c challenge, err error) {
 	}
 	var s string
 	err = rows.Scan(&c.Title, &s, &c.MaxScore,
-		&c.Solution, &c.Id, &c.Path, &c.Category)
+		/*&c.Solution, */&c.Id, &c.Path, &c.Category)//, &c.SolutionType)
 	c.Description = template.HTML(s)
 	return
 }
 
-func addChallenge(c challenge, creator string) {
+func addChallenge(c challenge) {
 	db, err := sql.Open("mysql", "tfg:passwordtfg@/tfg?charset=utf8")
 	checkErr(err)
 	defer db.Close()
 	stmt, err := db.Prepare("INSERT challenges SET " +
-		"Title=?, Description=?, MaxScore=?, Nhints=?, Solution=?," +
-		"Category=?, Creator=?, Path=?")
+		"Title=?, Description=?, MaxScore=?, Nhints=?, "+/*" Solution=?," +*/
+		"Category=?, Creator=?, Path=?")//, Solution_Type=?")
 	checkErr(err)
-	_, err = stmt.Exec(c.Title, string(c.Description), c.MaxScore, 0, c.Solution,
-		c.Category, creator, c.Path)
+	_, err = stmt.Exec(c.Title, string(c.Description), c.MaxScore, 0,// c.Solution,
+		c.Category, c.Creator, c.Path)//, c.SolutionType)
 	checkErr(err)
 
 }

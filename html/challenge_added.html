@@ -1,0 +1,20 @@
+<html>
+<head>
+<title>Challenge created!</title>
+</head>
+<body>
+<h1>Challenge succesfully created!</h1>
+<H2>Challenge Info:</H2>
+<ul>
+<li>Title: {{.Title}}</li><br>
+<li>Category: {{.Category}}</li><br>
+<li>Max Score{{.MaxScore}}</li><br>
+<li>Solution: {{ if .Solution }} {{.Solution}} ({{.SolutionType}})
+		{{else}} You will take care of it {{end}}</li><br>
+<li>Creator: {{.Creator}}</li><br>
+</ul>
+<a href="/">
+		<button type="button">Go back</button>
+</a><br>
+</body>
+</html>

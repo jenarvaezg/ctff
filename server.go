@@ -30,16 +30,17 @@ type user struct {
 }
 
 type challenge struct {
-	Title       string
-	Description template.HTML
-	Category    string
-	Id          int
-	MaxScore    int
-	Solution    string
-	Hints       []string
-	Path        string
-	Creator     string
-	LaunchText  template.HTML
+	Title        string
+	Description  template.HTML
+	Category     string
+	Id           int
+	MaxScore     int
+	/*Solution     string
+	SolutionType string*/
+	Hints        []string
+	Path         string
+	Creator      string
+	LaunchText   template.HTML
 }
 
 type challenge_link struct {
@@ -52,23 +53,48 @@ type challenge_link struct {
 }
 
 func (c challenge) launch(user string) template.HTML {
-	out, err := exec.Command(c.Path + "/start_challenge").Output()
+	out, err := exec.Command(c.Path+"/rc/start_challenge", user).Output()
 	if err != nil {
-		log.Println(err)
+		return template.HTML(err.Error())
 	}
 	return template.HTML(out)
 }
 
+func (c challenge) stop(user string) {
+	_, err := exec.Command(c.Path+"/rc/stop_challenge", user).Output()
+	if err != nil {
+		log.Println(template.HTML(err.Error()))
+	}
+}
+
+
+func (c challenge) checkSolution(solution, user string) bool {
+	/*if c.SolutionType == "match" {
+		return c.Solution == solution
+	}
+	if c.SolutionType == "regex" {
+		return true //TODO
+	}*/
+	err := exec.Command(c.Path+"/rc/check_solution", solution, user).Run()
+	return err == nil
+}
+
 func (c challenge) addToEnvironment() error {
-	path := ChallengesPath + "/" + c.Category + "/" + c.Path
+	path := ChallengesPath + "/" + c.Path
 	err := os.MkdirAll(path, os.FileMode(0755))
 	if err != nil {
 		fmt.Println(err)
 		return err
 	}
-	f, _ := os.Create(path + "/start_challenge")
+	f, _ := os.Create(path + "/rc/start_challenge")
+	f.Chmod(0777)
 	f.Close()
-	f, _ = os.Create(path + "/stop_challenge")
+	f, _ = os.Create(path + "/rc/stop_challenge")
+	f.Chmod(0777)
+	f.Close()
+	//if c.SolutionType == "external" {
+	f, _ = os.Create(path + "/rc/check_solution")
+	f.Chmod(0777)
 	f.Close()
 	return nil
 }
@@ -96,10 +122,17 @@ func challengeFromForm(form url.Values) (challenge, error) {
 	if c.Category == "" {
 		return c, errors.New("No Category")
 	}
+	/*c.SolutionType = form.Get("solution_type")
+	if c.SolutionType == "" {
+		return c, errors.New("No Solution Type")
+	}
+	if c.SolutionType == "external" {
+		return c, nil
+	}
 	c.Solution = form.Get("solution")
 	if c.Solution == "" {
 		return c, errors.New("No Solution")
-	}
+	}*/
 	return c, nil
 }
 
@@ -283,7 +316,7 @@ func handlerChallenge(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, err)
 		return
 	}
-	challenge.Path = ChallengesPath + "/" + challenge.Category + "/" + challenge.Path
+	challenge.Path = ChallengesPath + "/" + challenge.Path
 	if userFinishedChallenge(user.Email, target) {
 		fmt.Fprintf(w, "You already finished this challenge!")
 		return
@@ -305,9 +338,18 @@ func handlerChallenge(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			t.Execute(w, challenge)
+		} else if r.Form.Get("stop") != "" {
+			challenge.stop(user.Username)
+			challenge.LaunchText = ""
+			t, err := template.ParseFiles("html/challenge.html")
+			if err != nil {
+				fmt.Fprint(w, err)
+				return
+			}
+			t.Execute(w, challenge)
 		} else {
 			solution := r.Form.Get("solution")
-			succesful := solution == challenge.Solution
+			succesful := challenge.checkSolution(solution, user.Username)
 			addAtempt(user.Email, challenge.Id, succesful, challenge.MaxScore) /*TODO HINTS AFFECT MAX SCORE */
 			session, _ := store.Get(r, "challenge")
 			if succesful {
@@ -327,11 +369,16 @@ func handlerSuccess(w http.ResponseWriter, r *http.Request) {
 	id, ok := session.Values["challenge"].(int)
 	if !ok {
 		fmt.Println("NOT OK")
+		http.Redirect(w, r, "/", 301)
 	}
+	session = checkLogged(w, r)
+	username := session.Values["username"].(string)
+
 	challenge, err := getChallenge(id)
 	if err != nil {
 		fmt.Println(err)
 	}
+	defer challenge.stop(username)
 	session.Options = &sessions.Options{MaxAge: -1, Path: "/"}
 	session.Save(r, w)
 	t, _ := template.ParseFiles("html/success.html")
@@ -357,8 +404,15 @@ func handlerAddChallenge(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintln(w, err)
 			return
 		}
+		challenge.Creator = session.Values["username"].(string)
 		challenge.addToEnvironment()
-		addChallenge(challenge, session.Values["username"].(string))
+		addChallenge(challenge)
+		t, err := template.ParseFiles("html/challenge_added.html")
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println("EEEEEEEEEh")
+		t.Execute(w, challenge)
 	}
 }
 
@@ -382,7 +436,7 @@ func main() {
 	r.HandleFunc("/logout", handlerLogout)
 	r.HandleFunc("/success", handlerSuccess)
 	r.HandleFunc("/ranking", handlerRanking)
-	r.HandleFunc("/add_challenge", handlerAddChallenge)
+	r.HandleFunc("/add_challenge", handlerAddChallenge)     
 	err = http.ListenAndServeTLS(":9090", "server.pem", "server.key", r)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)

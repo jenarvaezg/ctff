@@ -10,9 +10,17 @@
 	<li>Description: {{.Description}}
 	</ul>
 	<form action="/challenge/{{ .Id }}" method="post">
+	{{if .LaunchText}}
+		{{.LaunchText}}<br>
+		<button name="stop" type="submit" value="stop">STOP</button><br>
+	{{else}}
 		<button name="launch" type="submit" value="launch">LAUNCH</button><br>
+	{{end}}
+		
 
-  	{{.LaunchText}}<br>
+  	
+
+
   		<input type="text" name="solution">
   		<input type="submit" value="Submit">
   	</form>
