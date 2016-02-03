@@ -184,8 +184,8 @@ func getChallenge(id int) (c challenge, err error) {
 	checkErr(err)
 	defer db.Close()
 	stmt, err := db.Prepare(
-		"SELECT Title, Description, MaxScore, "+/*, Solution, */"C_Id, Path, Category " +
-			/*"Solution_Type */"FROM challenges WHERE C_Id=?")
+		"SELECT Title, Description, MaxScore, " + /*, Solution, */ "C_Id, Alias, Category " +
+			/*"Solution_Type */ "FROM challenges WHERE C_Id=?")
 	checkErr(err)
 
 	rows, err := stmt.Query(id)
@@ -195,7 +195,7 @@ func getChallenge(id int) (c challenge, err error) {
 	}
 	var s string
 	err = rows.Scan(&c.Title, &s, &c.MaxScore,
-		/*&c.Solution, */&c.Id, &c.Path, &c.Category)//, &c.SolutionType)
+		/*&c.Solution, */ &c.Id, &c.Alias, &c.Category) //, &c.SolutionType)
 	c.Description = template.HTML(s)
 	return
 }
@@ -205,12 +205,29 @@ func addChallenge(c challenge) {
 	checkErr(err)
 	defer db.Close()
 	stmt, err := db.Prepare("INSERT challenges SET " +
-		"Title=?, Description=?, MaxScore=?, Nhints=?, "+/*" Solution=?," +*/
-		"Category=?, Creator=?, Path=?")//, Solution_Type=?")
+		"Title=?, Description=?, MaxScore=?, Nhints=?, " + /*" Solution=?," +*/
+		"Category=?, Creator=?, Alias=?") //, Solution_Type=?")
 	checkErr(err)
-	_, err = stmt.Exec(c.Title, string(c.Description), c.MaxScore, 0,// c.Solution,
-		c.Category, c.Creator, c.Path)//, c.SolutionType)
+	_, err = stmt.Exec(c.Title, string(c.Description), c.MaxScore, 0, // c.Solution,
+		c.Category, c.Creator, c.Alias) //, c.SolutionType)
 	checkErr(err)
+}
+
+func getAllChallengeAliases() (aliases []string) {
+
+	db, err := sql.Open("mysql", "tfg:passwordtfg@/tfg?charset=utf8")
+	checkErr(err)
+	defer db.Close()
+	stmt, err := db.Prepare("SELECT alias from challenges")
+	checkErr(err)
+	rows, err := stmt.Query()
+	for rows.Next() {
+		var s string
+		err = rows.Scan(&s)
+		checkErr(err)
+		aliases = append(aliases, s)
+	}
+	return
 
 }
 
