@@ -3,8 +3,12 @@ package main
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"html/template"
 	"log"
+	"os"
+	"os/exec"
+	"strconv"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -16,27 +20,99 @@ func checkErr(err error) {
 	}
 }
 
+type User struct {
+	Email    string
+	Username string
+	Created  string
+	IsYou    bool
+	Finished map[string]Challenge_link
+	Score    int
+}
+
+type Challenge struct {
+	Title       string
+	Description template.HTML
+	Category    string
+	Id          int
+	MaxScore    int
+	Hints       []string
+	Alias       string
+	Creator     string
+	LaunchText  template.HTML
+}
+
+func (c Challenge) Launch(user string) template.HTML {
+	out, err := exec.Command(ChallengesPath+"/"+c.Alias+
+		"/rc/start_challenge", user).Output()
+	if err != nil {
+		return template.HTML(err.Error() + string(out))
+	}
+	return template.HTML(out)
+}
+
+func (c Challenge) Stop(user string) {
+	_, err := exec.Command(ChallengesPath+"/"+c.Alias+
+		"/rc/stop_challenge", user).Output()
+	if err != nil {
+		log.Println(template.HTML(err.Error()))
+	}
+}
+
+func (c Challenge) CheckSolution(solution, user string) bool {
+	out, err := exec.Command(ChallengesPath+"/"+c.Alias+
+		"/rc/check_solution", solution, user).Output()
+	fmt.Println(out, err)
+	return err == nil
+}
+
+func (c Challenge) AddToEnvironment() error {
+	path := ChallengesPath + "/" + c.Alias
+	err := os.MkdirAll(path, os.FileMode(0755))
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+	f, _ := os.Create(path + "/rc/start_challenge")
+	f.Chmod(0777)
+	f.Close()
+	f, _ = os.Create(path + "/rc/stop_challenge")
+	f.Chmod(0777)
+	f.Close()
+	f, _ = os.Create(path + "/rc/check_solution")
+	f.Chmod(0777)
+	f.Close()
+	f, err = os.Create(path + "/your_ID_is_" + strconv.Itoa(c.Id))
+	f.Close()
+	return nil
+}
+
+type Challenge_link struct {
+	Title             string
+	Id                int
+	Score             int
+	NSuccess          int
+	NTries            int
+	SuccessPercentage float32
+}
+
 /***********************
 * User operations      *
 ***********************/
 
-func addUser(mail, password, username string) error {
-	db, err := sql.Open("mysql", "tfg:passwordtfg@/tfg?charset=utf8")
-	checkErr(err)
-	defer db.Close()
-
+func AddUser(mail, password, username string) error {
+	db, err := sql.Open("mysql", DBLoginString)
 	//insert
 	stmt, err := db.Prepare("INSERT userinfo SET " +
 		"email=?,password=?,created=?,username=?,score=?")
 	checkErr(err)
-	date := time.Now().String()
+	date := time.Now().Format("20060102")
 	_, err = stmt.Exec(mail, password, date, username, 0)
 	return err
 
 }
 
-func verifyUser(identifier, password string) (username string) {
-	db, err := sql.Open("mysql", "tfg:passwordtfg@/tfg?charset=utf8")
+func VerifyUser(identifier, password string) (username string) {
+	db, err := sql.Open("mysql", DBLoginString)
 	checkErr(err)
 	defer db.Close()
 
@@ -53,8 +129,8 @@ func verifyUser(identifier, password string) (username string) {
 	return
 }
 
-func getUsernames() (users []string) {
-	db, err := sql.Open("mysql", "tfg:passwordtfg@/tfg?charset=utf8")
+func GetUsernames() (users []string) {
+	db, err := sql.Open("mysql", DBLoginString)
 	checkErr(err)
 	defer db.Close()
 
@@ -74,12 +150,11 @@ func getUsernames() (users []string) {
 	return
 }
 
-func getUser(username string) (u user, err error) {
-	db, err := sql.Open("mysql", "tfg:passwordtfg@/tfg?charset=utf8")
+func GetUser(username string) (u User, err error) {
+	db, err := sql.Open("mysql", DBLoginString)
 	checkErr(err)
 	defer db.Close()
-	stmt, err := db.Prepare(
-		"SELECT * FROM userinfo WHERE username=?")
+	stmt, err := db.Prepare("SELECT * FROM userinfo WHERE username=?")
 	checkErr(err)
 	rows, err := stmt.Query(username)
 	if !rows.Next() {
@@ -93,9 +168,9 @@ func getUser(username string) (u user, err error) {
 		return
 	}
 	db.Close()
-	scores, ids := getSuccesfulAttempts(u.Email)
-	db, _ = sql.Open("mysql", "tfg:passwordtfg@/tfg?charset=utf8")
-	u.Finished = make(map[string]challenge_link)
+	scores, ids := GetSuccesfulAttempts(u.Email)
+	db, _ = sql.Open("mysql", DBLoginString)
+	u.Finished = make(map[string]Challenge_link)
 	for i := 0; i < len(ids); i++ {
 		stmt, err = db.Prepare("SELECT Title FROM challenges WHERE " +
 			"C_id=?")
@@ -104,14 +179,14 @@ func getUser(username string) (u user, err error) {
 		rows.Next()
 		var title string
 		rows.Scan(&title)
-		u.Finished[title] = challenge_link{Title: title, Score: scores[i],
+		u.Finished[title] = Challenge_link{Title: title, Score: scores[i],
 			Id: ids[i]}
 	}
 	return
 }
 
-func updateScore(email string, score int) {
-	db, err := sql.Open("mysql", "tfg:passwordtfg@/tfg?charset=utf8")
+func UpdateScore(email string, score int) {
+	db, err := sql.Open("mysql", DBLoginString)
 	checkErr(err)
 	defer db.Close()
 
@@ -132,8 +207,8 @@ func updateScore(email string, score int) {
 
 }
 
-func getRanking() (users []user) {
-	db, err := sql.Open("mysql", "tfg:passwordtfg@/tfg?charset=utf8")
+func GetRanking() (users []User) {
+	db, err := sql.Open("mysql", DBLoginString)
 	checkErr(err)
 	defer db.Close()
 	stmt, err := db.Prepare("SELECT username, Score from userinfo " +
@@ -141,7 +216,7 @@ func getRanking() (users []user) {
 	checkErr(err)
 	rows, err := stmt.Query()
 	for rows.Next() {
-		var u user
+		var u User
 		err = rows.Scan(&u.Username, &u.Score)
 		checkErr(err)
 		users = append(users, u)
@@ -154,8 +229,8 @@ func getRanking() (users []user) {
 * Challenge operations *
 ***********************/
 
-func getChallengesLinks() (challenges []challenge_link) {
-	db, err := sql.Open("mysql", "tfg:passwordtfg@/tfg?charset=utf8")
+func GetChallengesLinks() (challenges []Challenge_link) {
+	db, err := sql.Open("mysql", DBLoginString)
 	checkErr(err)
 	defer db.Close()
 
@@ -167,7 +242,7 @@ func getChallengesLinks() (challenges []challenge_link) {
 	checkErr(err)
 
 	for rows.Next() {
-		var c challenge_link
+		var c Challenge_link
 		err = rows.Scan(&c.Title, &c.Id, &c.Score,
 			&c.NTries, &c.NSuccess)
 		checkErr(err)
@@ -179,13 +254,13 @@ func getChallengesLinks() (challenges []challenge_link) {
 	return
 }
 
-func getChallenge(id int) (c challenge, err error) {
-	db, err := sql.Open("mysql", "tfg:passwordtfg@/tfg?charset=utf8")
+func GetChallenge(id int) (c Challenge, err error) {
+	db, err := sql.Open("mysql", DBLoginString)
 	checkErr(err)
 	defer db.Close()
 	stmt, err := db.Prepare(
-		"SELECT Title, Description, MaxScore, " + /*, Solution, */ "C_Id, Alias, Category " +
-			/*"Solution_Type */ "FROM challenges WHERE C_Id=?")
+		"SELECT Title, Description, MaxScore, C_Id, Alias, Category " +
+			"FROM challenges WHERE C_Id=?")
 	checkErr(err)
 
 	rows, err := stmt.Query(id)
@@ -194,28 +269,32 @@ func getChallenge(id int) (c challenge, err error) {
 		return
 	}
 	var s string
-	err = rows.Scan(&c.Title, &s, &c.MaxScore,
-		/*&c.Solution, */ &c.Id, &c.Alias, &c.Category) //, &c.SolutionType)
+	err = rows.Scan(&c.Title, &s, &c.MaxScore, &c.Id, &c.Alias, &c.Category)
 	c.Description = template.HTML(s)
 	return
 }
 
-func addChallenge(c challenge) {
-	db, err := sql.Open("mysql", "tfg:passwordtfg@/tfg?charset=utf8")
+func AddChallenge(c Challenge) int {
+	db, err := sql.Open("mysql", DBLoginString)
 	checkErr(err)
 	defer db.Close()
 	stmt, err := db.Prepare("INSERT challenges SET " +
-		"Title=?, Description=?, MaxScore=?, Nhints=?, " + /*" Solution=?," +*/
-		"Category=?, Creator=?, Alias=?") //, Solution_Type=?")
+		"Title=?, Description=?, MaxScore=?, Nhints=?, " +
+		"Category=?, Creator=?, Alias=?")
 	checkErr(err)
-	_, err = stmt.Exec(c.Title, string(c.Description), c.MaxScore, 0, // c.Solution,
-		c.Category, c.Creator, c.Alias) //, c.SolutionType)
+	_, err = stmt.Exec(c.Title, string(c.Description), c.MaxScore, 0,
+		c.Category, c.Creator, c.Alias)
 	checkErr(err)
+	stmt, err = db.Prepare("SELECT C_Id FROM challenges WHERE Alias =?")
+	checkErr(err)
+	rows, err := stmt.Query(c.Alias)
+	rows.Scan(&c.Id)
+	return c.Id
 }
 
-func getAllChallengeAliases() (aliases []string) {
+func GetAllChallengeAliases() (aliases []string) {
 
-	db, err := sql.Open("mysql", "tfg:passwordtfg@/tfg?charset=utf8")
+	db, err := sql.Open("mysql", DBLoginString)
 	checkErr(err)
 	defer db.Close()
 	stmt, err := db.Prepare("SELECT alias from challenges")
@@ -235,8 +314,8 @@ func getAllChallengeAliases() (aliases []string) {
 * Attempts operations  *
 ***********************/
 
-func addAtempt(email string, c_id int, succesful bool, score int) {
-	db, err := sql.Open("mysql", "tfg:passwordtfg@/tfg?charset=utf8")
+func AddAtempt(email string, c_id int, succesful bool, score int) {
+	db, err := sql.Open("mysql", DBLoginString)
 	checkErr(err)
 	defer db.Close()
 
@@ -244,9 +323,11 @@ func addAtempt(email string, c_id int, succesful bool, score int) {
 		"Date=?,u_email=?,C_Id=?,succesful=?,Score=?")
 	checkErr(err)
 
-	date := time.Now().String()
+	date := time.Now().Format("20060102")
+	fmt.Println(date)
 
-	_, _ = stmt.Exec(date, email, c_id, succesful, score)
+	_, err = stmt.Exec(date, email, c_id, succesful, score)
+	checkErr(err)
 	stmt, _ = db.Prepare("SELECT NTries from challenges WHERE " +
 		"c_id=?")
 	rows, _ := stmt.Query(c_id)
@@ -271,8 +352,8 @@ func addAtempt(email string, c_id int, succesful bool, score int) {
 
 }
 
-func getSuccesfulAttempts(email string) (scores []int, ids []int) {
-	db, err := sql.Open("mysql", "tfg:passwordtfg@/tfg?charset=utf8")
+func GetSuccesfulAttempts(email string) (scores []int, ids []int) {
+	db, err := sql.Open("mysql", DBLoginString)
 	checkErr(err)
 	defer db.Close()
 
@@ -291,8 +372,8 @@ func getSuccesfulAttempts(email string) (scores []int, ids []int) {
 	return scores, ids
 }
 
-func userFinishedChallenge(email string, c_id int) bool {
-	db, err := sql.Open("mysql", "tfg:passwordtfg@/tfg?charset=utf8")
+func UserFinishedChallenge(email string, c_id int) bool {
+	db, err := sql.Open("mysql", DBLoginString)
 	checkErr(err)
 	defer db.Close()
 

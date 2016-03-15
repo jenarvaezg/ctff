@@ -1,22 +1,19 @@
 package main
 
 import (
-	"bytes"
 	"crypto/sha512"
 	"encoding/base64"
 	"errors"
 	"fmt"
 	"html/template"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"regexp"
 	"strconv"
-	"sync"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -37,20 +34,6 @@ type user struct {
 	Score    int
 }
 
-type challenge struct {
-	Title       string
-	Description template.HTML
-	Category    string
-	Id          int
-	MaxScore    int
-	/*Solution     string
-	SolutionType string*/
-	Hints      []string
-	Alias      string
-	Creator    string
-	LaunchText template.HTML
-}
-
 type challenge_link struct {
 	Title             string
 	Id                int
@@ -60,52 +43,9 @@ type challenge_link struct {
 	SuccessPercentage float32
 }
 
-func (c challenge) launch(user string) template.HTML {
-	out, err := exec.Command(ChallengesPath+"/"+c.Alias+
-		"/rc/start_challenge", user).Output()
-	if err != nil {
-		return template.HTML(err.Error() + string(out))
-	}
-	return template.HTML(out)
-}
-
-func (c challenge) stop(user string) {
-	_, err := exec.Command(ChallengesPath+"/"+c.Alias+
-		"/rc/stop_challenge", user).Output()
-	if err != nil {
-		log.Println(template.HTML(err.Error()))
-	}
-}
-
-func (c challenge) checkSolution(solution, user string) bool {
-	out, err := exec.Command(ChallengesPath+"/"+c.Alias+
-		"/rc/check_solution", solution, user).Output()
-	fmt.Println(out, err)
-	return err == nil
-}
-
-func (c challenge) addToEnvironment() error {
-	path := ChallengesPath + "/" + c.Alias
-	err := os.MkdirAll(path, os.FileMode(0755))
-	if err != nil {
-		fmt.Println(err)
-		return err
-	}
-	f, _ := os.Create(path + "/rc/start_challenge")
-	f.Chmod(0777)
-	f.Close()
-	f, _ = os.Create(path + "/rc/stop_challenge")
-	f.Chmod(0777)
-	f.Close()
-	f, _ = os.Create(path + "/rc/check_solution")
-	f.Chmod(0777)
-	f.Close()
-	return nil
-}
-
-func challengeFromForm(form url.Values) (challenge, error) {
+func challengeFromForm(form url.Values) (Challenge, error) {
 	var err error
-	c := challenge{}
+	c := Challenge{}
 	fmt.Println(form)
 	c.Title = form.Get("title")
 	if c.Title == "" {
@@ -158,7 +98,7 @@ func validPassword(password string) bool {
 func checkLogged(w http.ResponseWriter, r *http.Request) *sessions.Session {
 	session, _ := store.Get(r, "session")
 	if session.Values["username"] == nil {
-		http.Redirect(w, r, "/", 301)
+		http.Redirect(w, r, "/", http.StatusFound)
 	}
 	return session
 }
@@ -166,7 +106,7 @@ func checkLogged(w http.ResponseWriter, r *http.Request) *sessions.Session {
 func checkNotLogged(w http.ResponseWriter, r *http.Request) *sessions.Session {
 	session, _ := store.Get(r, "session")
 	if session.Values["username"] != nil {
-		http.Redirect(w, r, "/", 301)
+		http.Redirect(w, r, "/", http.StatusFound)
 	}
 	return session
 }
@@ -191,6 +131,7 @@ func getSha512(s string) string {
 
 func handlerRoot(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
+		fmt.Println(r.URL.Path)
 		http.NotFound(w, r)
 		return
 	}
@@ -226,11 +167,11 @@ func handlerCreateAccount(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		password = getSha512(r.Form.Get("password"))
-		if err := addUser(email, password, username); err != nil {
+		if err := AddUser(email, password, username); err != nil {
 			fmt.Fprintf(w, "Mail or username already in use or %s\n", err)
 			return
 		}
-		http.Redirect(w, r, "/created", 301)
+		http.Redirect(w, r, "/created", http.StatusFound)
 	}
 }
 
@@ -247,7 +188,7 @@ func handlerLogin(w http.ResponseWriter, r *http.Request) {
 		}*/
 		identifier := r.Form.Get("identifier")
 		password := getSha512(r.Form.Get("password"))
-		username := verifyUser(identifier, password)
+		username := VerifyUser(identifier, password)
 
 		if username == "" {
 			fmt.Fprintf(w, "Wrong mail or password\n")
@@ -255,12 +196,12 @@ func handlerLogin(w http.ResponseWriter, r *http.Request) {
 		}
 		session.Values["username"] = username
 		session.Save(r, w)
-		http.Redirect(w, r, "/user/"+username, 301)
+		http.Redirect(w, r, "/user/"+username, http.StatusFound)
 	}
 }
 
 func handlerUsers(w http.ResponseWriter, r *http.Request) {
-	users := getUsernames()
+	users := GetUsernames()
 	t, _ := template.ParseFiles("static/users.html")
 	t.Execute(w, users)
 }
@@ -269,7 +210,8 @@ func handlerUser(w http.ResponseWriter, r *http.Request) {
 	session := checkLogged(w, r)
 	username := session.Values["username"]
 	target := mux.Vars(r)["username"]
-	user, err := getUser(target)
+	user, err := GetUser(target)
+	fmt.Println(user)
 	if err != nil {
 		fmt.Fprintf(w, "User %s not found :(\n%s", target, err)
 		return
@@ -290,12 +232,12 @@ func handlerLogout(w http.ResponseWriter, r *http.Request) {
 	session, _ := store.Get(r, "session")
 	session.Options = &sessions.Options{MaxAge: -1, Path: "/"}
 	session.Save(r, w)
-	http.Redirect(w, r, "/", 301)
+	http.Redirect(w, r, "/", http.StatusFound)
 }
 
 func handlerChallenges(w http.ResponseWriter, r *http.Request) {
 	checkLogged(w, r)
-	challenges := getChallengesLinks()
+	challenges := GetChallengesLinks()
 	t, _ := template.ParseFiles("static/challenges.html")
 	t.Execute(w, challenges)
 }
@@ -304,14 +246,14 @@ func handlerChallenge(w http.ResponseWriter, r *http.Request) {
 	session := checkLogged(w, r)
 	username := session.Values["username"]
 	target, err := strconv.Atoi(mux.Vars(r)["challenge_id"])
-	user, _ := getUser(username.(string))
-	challenge, err := getChallenge(target)
+	user, _ := GetUser(username.(string))
+	challenge, err := GetChallenge(target)
 	if err != nil {
 		fmt.Fprintf(w, "challenge %d not found :(\n", target)
 		fmt.Fprintln(w, err)
 		return
 	}
-	if userFinishedChallenge(user.Email, target) {
+	if UserFinishedChallenge(user.Email, target) {
 		fmt.Fprintf(w, "You already finished this challenge!")
 		return
 	}
@@ -325,7 +267,7 @@ func handlerChallenge(w http.ResponseWriter, r *http.Request) {
 	} else if r.Method == "POST" {
 		r.ParseForm()
 		if r.Form.Get("launch") != "" {
-			challenge.LaunchText = challenge.launch(user.Username)
+			challenge.LaunchText = challenge.Launch(user.Username)
 			t, err := template.ParseFiles("static/challenge.html")
 			if err != nil {
 				fmt.Fprint(w, err)
@@ -333,7 +275,7 @@ func handlerChallenge(w http.ResponseWriter, r *http.Request) {
 			}
 			t.Execute(w, challenge)
 		} else if r.Form.Get("stop") != "" {
-			challenge.stop(user.Username)
+			challenge.Stop(user.Username)
 			challenge.LaunchText = ""
 			t, err := template.ParseFiles("static/challenge.html")
 			if err != nil {
@@ -343,14 +285,14 @@ func handlerChallenge(w http.ResponseWriter, r *http.Request) {
 			t.Execute(w, challenge)
 		} else {
 			solution := r.Form.Get("solution")
-			succesful := challenge.checkSolution(solution, user.Username)
-			addAtempt(user.Email, challenge.Id, succesful, challenge.MaxScore) /*TODO HINTS AFFECT MAX SCORE */
+			succesful := challenge.CheckSolution(solution, user.Username)
+			AddAtempt(user.Email, challenge.Id, succesful, challenge.MaxScore) /*TODO HINTS AFFECT MAX SCORE */
 			session, _ := store.Get(r, "challenge")
 			if succesful {
 				session.Values["challenge"] = challenge.Id //TODO CHANGE THIS TOO
 				session.Save(r, w)
-				updateScore(user.Email, challenge.MaxScore)
-				http.Redirect(w, r, "/success", 301)
+				UpdateScore(user.Email, challenge.MaxScore)
+				http.Redirect(w, r, "/success", http.StatusFound)
 			}
 			fmt.Fprintf(w, "Wrong answer :(")
 		}
@@ -363,7 +305,7 @@ func handlerSuccess(w http.ResponseWriter, r *http.Request) {
 	id, ok := session.Values["challenge"].(int)
 	if !ok {
 		fmt.Println("NOT OK")
-		http.Redirect(w, r, "/", 301)
+		http.Redirect(w, r, "/", http.StatusFound)
 	}
 	session.Options = &sessions.Options{MaxAge: -1, Path: "/"}
 	session.Save(r, w)
@@ -371,18 +313,18 @@ func handlerSuccess(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(session)
 	username := session.Values["username"].(string)
 	fmt.Println("OK")
-	challenge, err := getChallenge(id)
+	challenge, err := GetChallenge(id)
 	if err != nil {
 		fmt.Println(err)
 	}
-	defer challenge.stop(username)
+	defer challenge.Stop(username)
 	t, _ := template.ParseFiles("static/success.html")
 	t.Execute(w, challenge)
 }
 
 func handlerRanking(w http.ResponseWriter, r *http.Request) {
 	checkLogged(w, r)
-	ranking := getRanking()
+	ranking := GetRanking()
 	t, _ := template.ParseFiles("static/ranking.html")
 	t.Execute(w, ranking)
 }
@@ -400,8 +342,8 @@ func handlerAddChallenge(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		challenge.Creator = session.Values["username"].(string)
-		challenge.addToEnvironment()
-		addChallenge(challenge)
+		challenge.AddToEnvironment()
+		AddChallenge(challenge)
 		t, err := template.ParseFiles("static/challenge_added.html")
 		if err != nil {
 			log.Fatal(err)
@@ -412,18 +354,31 @@ func handlerAddChallenge(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlerStatic(w http.ResponseWriter, r *http.Request) {
-	stream, err := ioutil.ReadFile(r.URL.Path[1:])
-
+	fmt.Println("HEYA")
+	if strings.Contains(r.URL.Path, "..") {
+		http.NotFound(w, r)
+		return
+	}
+	vars := mux.Vars(r)
+	_, ok := vars["challenge_id"]
+	if !ok {
+		http.ServeFile(w, r, CTF2Path+r.URL.Path)
+		return
+	}
+	id, err := strconv.Atoi(vars["challenge_id"])
 	if err != nil {
-		fmt.Println(err)
-		fmt.Fprintf(w, "File %s does not exist\n", r.URL.Path[1:])
+		http.NotFound(w, r)
+		return
 	}
-
-	b := bytes.NewBuffer(stream)
-
-	if _, err := b.WriteTo(w); err != nil { // <----- here!
-		fmt.Fprintf(w, "%s", err)
+	resource, ok := vars["static_element"]
+	c, err := GetChallenge(id)
+	if err != nil || !ok {
+		http.NotFound(w, r)
+		return
 	}
+	fmt.Println("OK UPTO HERE")
+	fmt.Println(ChallengesPath + "/" + c.Alias + "/static/" + resource)
+	http.ServeFile(w, r, ChallengesPath+"/"+c.Alias+"/static/"+resource)
 }
 
 var store = sessions.NewCookieStore([]byte("EEEEH"))
@@ -442,42 +397,8 @@ func setupRouter(r *mux.Router) {
 	r.HandleFunc("/ranking", handlerRanking)
 	r.HandleFunc("/add_challenge", handlerAddChallenge)
 	r.HandleFunc("/static/{folder}/{element}", handlerStatic)
+	r.HandleFunc("/challenge/{challenge_id}/static/{static_element}", handlerStatic)
 
-}
-
-func addNewChallenges() {
-	fileInfos, err := ioutil.ReadDir(ChallengesPath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	aliases := getAllChallengeAliases()
-	old_challenges := make(map[string]bool)
-	for _, fileInfo := range fileInfos {
-		old_challenges[fileInfo.Name()] = false
-		for _, alias := range aliases {
-			if fileInfo.Name() == alias {
-				old_challenges[alias] = true
-				break
-			}
-		}
-	}
-	var wg sync.WaitGroup
-	for k, v := range old_challenges {
-		if !v {
-			wg.Add(1)
-			go func(dirname string) {
-				f, err := os.Open(dirname + "/info.json")
-				if err != nil {
-					fmt.Println(err)
-					return
-				}
-				defer f.Close()
-				fmt.Println("OK")
-				wg.Done()
-			}(ChallengesPath + "/" + k)
-		}
-	}
-	wg.Wait()
 }
 
 func main() {
