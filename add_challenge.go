@@ -40,8 +40,9 @@ func addChallengeSetup(wg *sync.WaitGroup, dirname string) {
 	c := challengeFromInterface(m)
 	c.Alias = dirname[len(ChallengesPath+"/"):]
 	fmt.Println(c)
-	//addChallenge(c)
-	c.Id = 0
+	if c.Alias != "test" {
+		c.Id = AddChallenge(c)
+	}
 	if err = c.AddToEnvironment(); err != nil {
 		fmt.Println(err)
 		return
@@ -58,6 +59,9 @@ func addNewChallenges() {
 	aliases := GetAllChallengeAliases()
 	old_challenges := make(map[string]bool)
 	for _, fileInfo := range fileInfos {
+		if !fileInfo.IsDir() {
+			continue
+		}
 		old_challenges[fileInfo.Name()] = false
 		for _, alias := range aliases {
 			if fileInfo.Name() == alias {

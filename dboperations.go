@@ -61,18 +61,23 @@ func (c Challenge) Stop(user string) {
 func (c Challenge) CheckSolution(solution, user string) bool {
 	out, err := exec.Command(ChallengesPath+"/"+c.Alias+
 		"/rc/check_solution", solution, user).Output()
-	fmt.Println(out, err)
+	fmt.Println(string(out), err)
 	return err == nil
 }
 
 func (c Challenge) AddToEnvironment() error {
 	path := ChallengesPath + "/" + c.Alias
-	err := os.MkdirAll(path, os.FileMode(0755))
+	err := os.MkdirAll(path+"/rc", os.FileMode(0755))
 	if err != nil {
 		fmt.Println(err)
 		return err
 	}
-	f, _ := os.Create(path + "/rc/start_challenge")
+	_ = os.MkdirAll(path+"/static", os.FileMode(0755))
+	f, err := os.Create(path + "/rc/start_challenge")
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
 	f.Chmod(0777)
 	f.Close()
 	f, _ = os.Create(path + "/rc/stop_challenge")
@@ -285,9 +290,12 @@ func AddChallenge(c Challenge) int {
 	_, err = stmt.Exec(c.Title, string(c.Description), c.MaxScore, 0,
 		c.Category, c.Creator, c.Alias)
 	checkErr(err)
-	stmt, err = db.Prepare("SELECT C_Id FROM challenges WHERE Alias =?")
+	stmt, err = db.Prepare("SELECT C_Id FROM challenges WHERE Alias=?")
 	checkErr(err)
 	rows, err := stmt.Query(c.Alias)
+	if !rows.Next() {
+		panic("DAFUQ")
+	}
 	rows.Scan(&c.Id)
 	return c.Id
 }

@@ -312,7 +312,6 @@ func handlerSuccess(w http.ResponseWriter, r *http.Request) {
 	session = checkLogged(w, r)
 	fmt.Println(session)
 	username := session.Values["username"].(string)
-	fmt.Println("OK")
 	challenge, err := GetChallenge(id)
 	if err != nil {
 		fmt.Println(err)
@@ -376,7 +375,6 @@ func handlerStatic(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	fmt.Println("OK UPTO HERE")
 	fmt.Println(ChallengesPath + "/" + c.Alias + "/static/" + resource)
 	http.ServeFile(w, r, ChallengesPath+"/"+c.Alias+"/static/"+resource)
 }
