@@ -41,6 +41,8 @@ type Challenge struct {
 }
 
 func (c Challenge) Launch(user string) template.HTML {
+	os.Setenv("CHALLENGE_ID", c.UID)
+	os.Setenv("CHALLENGE_PATH", ChallengesPath+"/"+c.Alias)
 	cmd := exec.Command(ChallengesPath+"/"+c.Alias+
 		"/rc/start_challenge", user)
 	if c.Title == "Telegram PoC" {
@@ -48,18 +50,19 @@ func (c Challenge) Launch(user string) template.HTML {
 		if err != nil {
 			return template.HTML(err.Error())
 		}
-	} else {
-		out, err := cmd.Output()
-		if err != nil {
-			return template.HTML(err.Error() + string(out))
-		}
-		return template.HTML(out)
+		return template.HTML("Challenge launched")
 	}
-	return template.HTML("Challenge launched")
+	out, err := cmd.Output()
+	if err != nil {
+		return template.HTML(err.Error() + string(out))
+	}
+	return template.HTML(out)
 
 }
 
 func (c Challenge) Stop(user string) {
+	os.Setenv("CHALLENGE_ID", c.UID)
+	os.Setenv("CHALLENGE_PATH", ChallengesPath+"/"+c.Alias)
 	_, err := exec.Command(ChallengesPath+"/"+c.Alias+
 		"/rc/stop_challenge", user).Output()
 	if err != nil {
@@ -68,6 +71,8 @@ func (c Challenge) Stop(user string) {
 }
 
 func (c Challenge) CheckSolution(solution, user string) bool {
+	os.Setenv("CHALLENGE_ID", c.UID)
+	os.Setenv("CHALLENGE_PATH", ChallengesPath+"/"+c.Alias)
 	out, err := exec.Command(ChallengesPath+"/"+c.Alias+
 		"/rc/check_solution", solution, user).Output()
 	fmt.Println(string(out), err)
@@ -101,6 +106,17 @@ func (c Challenge) AddToEnvironment() error {
 	}
 	f, err := os.Create(path + "/your_ID_is_" + c.UID)
 	f.Close()
+	return nil
+}
+
+func (c Challenge) addChallenge() error {
+	if c.Alias != "test" {
+		AddChallenge(c)
+	}
+	if err := c.AddToEnvironment(); err != nil {
+		return err
+	}
+	fmt.Println("Challenge", c.Title, "succesfully added")
 	return nil
 }
 
@@ -292,6 +308,11 @@ func GetChallenge(UID string) (c Challenge, err error) {
 	err = rows.Scan(&c.Title, &s, &c.MaxScore, &c.Alias, &c.Category, &c.UID, &c.Creator)
 	c.Description = template.HTML(s)
 	return
+}
+
+func ChallengeExists(UID string) bool {
+	_, err := GetChallenge(UID)
+	return err != nil
 }
 
 func AddChallenge(c Challenge) {

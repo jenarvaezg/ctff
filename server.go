@@ -50,10 +50,10 @@ func main() {
 		}
 	} else if mode == setup {
 		addNewChallenges()
-		/*} else if mode == install {
-		installChallenge(os.Args[2])*/
+	} else if mode == install {
+		installChallenges(os.Args[2:])
 	} else if mode == export {
-		exportChallenge(os.Args[2:])
+		exportChallenges(os.Args[2:])
 	}
 
 }
