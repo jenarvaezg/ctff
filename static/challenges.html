@@ -53,7 +53,7 @@
 			{{ range $value := . }}
 			<li class="list-group-item">
 				<!--<span class="badge">{{ .Score }}</span>-->
-				<a href="/challenge/{{ $value.Id }}"><H2>{{ $value.Title }}. Points: {{ $value.Score }}</H2>
+				<a href="/challenge/{{ $value.UID }}"><H2>{{ $value.Title }}. Points: {{ $value.Score }}</H2>
 				<H3>Tries: {{ $value.NTries }} Successes: {{ $value.NSuccess }} <right>({{ $value.SuccessPercentage }} %)</right></H3></a>
 			</li>
 			{{end}}

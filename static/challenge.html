@@ -54,7 +54,7 @@
 					<li>MaxPoints: {{.MaxScore}}</li>
 					<li>Description: {{.Description}}</li>
 				</ul>
-				<form action="/challenge/{{ .Id }}" method="post">
+				<form action="/challenge/{{ .UID }}" method="post">
 					{{if .LaunchText}}
 					{{.LaunchText}}<br>
 					<button class="btn btn-primary btn-lg" role="button" name="stop" type="submit" value="stop">STOP</button><br>

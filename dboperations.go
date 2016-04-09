@@ -8,7 +8,6 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"strconv"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -33,7 +32,7 @@ type Challenge struct {
 	Title       string
 	Description template.HTML
 	Category    string
-	Id          int
+	UID         string
 	MaxScore    int
 	Hints       []string
 	Alias       string
@@ -42,12 +41,22 @@ type Challenge struct {
 }
 
 func (c Challenge) Launch(user string) template.HTML {
-	out, err := exec.Command(ChallengesPath+"/"+c.Alias+
-		"/rc/start_challenge", user).Output()
-	if err != nil {
-		return template.HTML(err.Error() + string(out))
+	cmd := exec.Command(ChallengesPath+"/"+c.Alias+
+		"/rc/start_challenge", user)
+	if c.Title == "Telegram PoC" {
+		err := cmd.Start()
+		if err != nil {
+			return template.HTML(err.Error())
+		}
+	} else {
+		out, err := cmd.Output()
+		if err != nil {
+			return template.HTML(err.Error() + string(out))
+		}
+		return template.HTML(out)
 	}
-	return template.HTML(out)
+	return template.HTML("Challenge launched")
+
 }
 
 func (c Challenge) Stop(user string) {
@@ -66,6 +75,7 @@ func (c Challenge) CheckSolution(solution, user string) bool {
 }
 
 func (c Challenge) AddToEnvironment() error {
+	filesToCreate := []string{"/rc/start_challenge", "/rc/stop_challenge", "/rc/check_solution"}
 	path := ChallengesPath + "/" + c.Alias
 	err := os.MkdirAll(path+"/rc", os.FileMode(0755))
 	if err != nil {
@@ -73,31 +83,35 @@ func (c Challenge) AddToEnvironment() error {
 		return err
 	}
 	_ = os.MkdirAll(path+"/static", os.FileMode(0755))
-	f, err := os.Create(path + "/rc/start_challenge")
-	if err != nil {
-		fmt.Println(err)
-		return err
+
+	for _, fName := range filesToCreate {
+		if _, err := os.Stat(path + fName); os.IsNotExist(err) {
+			f, err := os.Open(path + fName)
+			if err != nil {
+				fmt.Println(err)
+				return err
+			}
+			f.Chmod(0777)
+			f.Close()
+		} else {
+			fmt.Println(err)
+			fmt.Println("File", path+fName, "alredy exists, make sure I can execute it!")
+		}
+
 	}
-	f.Chmod(0777)
-	f.Close()
-	f, _ = os.Create(path + "/rc/stop_challenge")
-	f.Chmod(0777)
-	f.Close()
-	f, _ = os.Create(path + "/rc/check_solution")
-	f.Chmod(0777)
-	f.Close()
-	f, err = os.Create(path + "/your_ID_is_" + strconv.Itoa(c.Id))
+	f, err := os.Create(path + "/your_ID_is_" + c.UID)
 	f.Close()
 	return nil
 }
 
 type Challenge_link struct {
-	Title             string
-	Id                int
+	Title string
+	//Id                int
 	Score             int
 	NSuccess          int
 	NTries            int
 	SuccessPercentage float32
+	UID               string
 }
 
 /***********************
@@ -173,19 +187,20 @@ func GetUser(username string) (u User, err error) {
 		return
 	}
 	db.Close()
-	scores, ids := GetSuccesfulAttempts(u.Email)
+	scores, uids := GetSuccesfulAttempts(u.Email)
 	db, _ = sql.Open("mysql", DBLoginString)
 	u.Finished = make(map[string]Challenge_link)
-	for i := 0; i < len(ids); i++ {
+	fmt.Println("HEY HEY ", uids)
+	for i := 0; i < len(uids); i++ {
 		stmt, err = db.Prepare("SELECT Title FROM challenges WHERE " +
-			"C_id=?")
-		rows, err = stmt.Query(ids[i])
+			"UID=?")
+		rows, err = stmt.Query(uids[i])
 		checkErr(err)
 		rows.Next()
 		var title string
 		rows.Scan(&title)
 		u.Finished[title] = Challenge_link{Title: title, Score: scores[i],
-			Id: ids[i]}
+			UID: uids[i]}
 	}
 	return
 }
@@ -240,7 +255,7 @@ func GetChallengesLinks() (challenges []Challenge_link) {
 	defer db.Close()
 
 	stmt, err := db.Prepare(
-		"SELECT Title, C_Id, MaxScore, Ntries, NSuccess  FROM challenges")
+		"SELECT Title, MaxScore, Ntries, NSuccess, UID  FROM challenges")
 	checkErr(err)
 
 	rows, err := stmt.Query()
@@ -248,8 +263,8 @@ func GetChallengesLinks() (challenges []Challenge_link) {
 
 	for rows.Next() {
 		var c Challenge_link
-		err = rows.Scan(&c.Title, &c.Id, &c.Score,
-			&c.NTries, &c.NSuccess)
+		err = rows.Scan(&c.Title, &c.Score,
+			&c.NTries, &c.NSuccess, &c.UID)
 		checkErr(err)
 		if c.NTries != 0 {
 			c.SuccessPercentage = 100 * float32(c.NSuccess) / float32(c.NTries)
@@ -259,45 +274,57 @@ func GetChallengesLinks() (challenges []Challenge_link) {
 	return
 }
 
-func GetChallenge(id int) (c Challenge, err error) {
+func GetChallenge(UID string) (c Challenge, err error) {
 	db, err := sql.Open("mysql", DBLoginString)
 	checkErr(err)
 	defer db.Close()
 	stmt, err := db.Prepare(
-		"SELECT Title, Description, MaxScore, C_Id, Alias, Category " +
-			"FROM challenges WHERE C_Id=?")
+		"SELECT Title, Description, MaxScore, Alias, Category, UID, Creator " +
+			"FROM challenges WHERE UID=?")
 	checkErr(err)
 
-	rows, err := stmt.Query(id)
+	rows, err := stmt.Query(UID)
 	if !rows.Next() {
 		err = errors.New("Not found")
 		return
 	}
 	var s string
-	err = rows.Scan(&c.Title, &s, &c.MaxScore, &c.Id, &c.Alias, &c.Category)
+	err = rows.Scan(&c.Title, &s, &c.MaxScore, &c.Alias, &c.Category, &c.UID, &c.Creator)
 	c.Description = template.HTML(s)
 	return
 }
 
-func AddChallenge(c Challenge) int {
+func AddChallenge(c Challenge) {
 	db, err := sql.Open("mysql", DBLoginString)
 	checkErr(err)
 	defer db.Close()
 	stmt, err := db.Prepare("INSERT challenges SET " +
 		"Title=?, Description=?, MaxScore=?, Nhints=?, " +
-		"Category=?, Creator=?, Alias=?")
+		"Category=?, Creator=?, Alias=?, UID=?")
 	checkErr(err)
 	_, err = stmt.Exec(c.Title, string(c.Description), c.MaxScore, 0,
-		c.Category, c.Creator, c.Alias)
+		c.Category, c.Creator, c.Alias, c.UID)
 	checkErr(err)
-	stmt, err = db.Prepare("SELECT C_Id FROM challenges WHERE Alias=?")
+}
+
+func getChallengeByAlias(alias string) (c Challenge, err error) {
+	db, err := sql.Open("mysql", DBLoginString)
 	checkErr(err)
-	rows, err := stmt.Query(c.Alias)
+	defer db.Close()
+	stmt, err := db.Prepare(
+		"SELECT Title, Description, MaxScore, Alias, Category, UID, Creator " +
+			"FROM challenges WHERE Alias=?")
+	checkErr(err)
+
+	rows, err := stmt.Query(alias)
 	if !rows.Next() {
-		panic("DAFUQ")
+		err = errors.New("Not found")
+		return
 	}
-	rows.Scan(&c.Id)
-	return c.Id
+	var s string
+	err = rows.Scan(&c.Title, &s, &c.MaxScore, &c.Alias, &c.Category, &c.UID, &c.Creator)
+	c.Description = template.HTML(s)
+	return
 }
 
 func GetAllChallengeAliases() (aliases []string) {
@@ -322,73 +349,74 @@ func GetAllChallengeAliases() (aliases []string) {
 * Attempts operations  *
 ***********************/
 
-func AddAtempt(email string, c_id int, succesful bool, score int) {
+func AddAtempt(email string, UID string, succesful bool, score int) {
 	db, err := sql.Open("mysql", DBLoginString)
 	checkErr(err)
 	defer db.Close()
 
 	stmt, err := db.Prepare("INSERT attempts SET " +
-		"Date=?,u_email=?,C_Id=?,succesful=?,Score=?")
+		"Date=?,u_email=?,UID=?,succesful=?,Score=?")
 	checkErr(err)
 
 	date := time.Now().Format("20060102")
 	fmt.Println(date)
 
-	_, err = stmt.Exec(date, email, c_id, succesful, score)
+	_, err = stmt.Exec(date, email, UID, succesful, score)
 	checkErr(err)
 	stmt, _ = db.Prepare("SELECT NTries from challenges WHERE " +
-		"c_id=?")
-	rows, _ := stmt.Query(c_id)
+		"UID=?")
+	rows, _ := stmt.Query(UID)
 	rows.Next()
 	var ntries int
 	rows.Scan(&ntries)
 	ntries++
-	stmt, _ = db.Prepare("UPDATE challenges SET NTries=? WHERE C_Id=?")
-	stmt.Exec(ntries, c_id)
+	stmt, _ = db.Prepare("UPDATE challenges SET NTries=? WHERE UID=?")
+	stmt.Exec(ntries, UID)
 
 	if succesful {
 		stmt, _ = db.Prepare("SELECT NSuccess from challenges WHERE " +
-			"c_id=?")
-		rows, _ := stmt.Query(c_id)
+			"UID=?")
+		rows, _ := stmt.Query(UID)
 		rows.Next()
 		var nsuccess int
 		rows.Scan(&nsuccess)
 		nsuccess++
-		stmt, err = db.Prepare("UPDATE challenges SET NSuccess=? WHERE C_Id=?")
-		stmt.Exec(nsuccess, c_id)
+		stmt, err = db.Prepare("UPDATE challenges SET NSuccess=? WHERE UID=?")
+		stmt.Exec(nsuccess, UID)
 	}
 
 }
 
-func GetSuccesfulAttempts(email string) (scores []int, ids []int) {
+func GetSuccesfulAttempts(email string) (scores []int, uids []string) {
 	db, err := sql.Open("mysql", DBLoginString)
 	checkErr(err)
 	defer db.Close()
 
-	stmt, err := db.Prepare("SELECT score, C_Id FROM attempts WHERE " +
+	stmt, err := db.Prepare("SELECT score, UID FROM attempts WHERE " +
 		"succesful = true and u_email = ?")
 	checkErr(err)
 	rows, err := stmt.Query(email)
 	checkErr(err)
 
 	for rows.Next() {
-		var score, c_id int
-		err = rows.Scan(&score, &c_id)
+		var score int
+		var UID string
+		err = rows.Scan(&score, &UID)
 		scores = append(scores, score)
-		ids = append(ids, c_id)
+		uids = append(uids, UID)
 	}
-	return scores, ids
+	return scores, uids
 }
 
-func UserFinishedChallenge(email string, c_id int) bool {
+func UserFinishedChallenge(email string, UID string) bool {
 	db, err := sql.Open("mysql", DBLoginString)
 	checkErr(err)
 	defer db.Close()
 
 	stmt, err := db.Prepare("SELECT * FROM attempts WHERE " +
-		"succesful = true and u_email = ? and C_Id=?")
+		"succesful = true and u_email = ? and UID=?")
 	checkErr(err)
-	rows, err := stmt.Query(email, c_id)
+	rows, err := stmt.Query(email, UID)
 	checkErr(err)
 
 	return rows.Next()

@@ -17,6 +17,7 @@ func challengeFromInterface(m map[string]interface{}) (c Challenge) {
 	c.Category = m["Category"].(string)
 	c.MaxScore = int(m["MaxScore"].(float64))
 	c.Creator = m["Creator"].(string)
+	c.UID = getSha512Hex(c.Title)
 	return
 }
 
@@ -41,13 +42,13 @@ func addChallengeSetup(wg *sync.WaitGroup, dirname string) {
 	c.Alias = dirname[len(ChallengesPath+"/"):]
 	fmt.Println(c)
 	if c.Alias != "test" {
-		c.Id = AddChallenge(c)
+		AddChallenge(c)
 	}
 	if err = c.AddToEnvironment(); err != nil {
 		fmt.Println(err)
 		return
 	}
-	fmt.Println("Now you have to add your code to the executables")
+	fmt.Println("Challenge", c.Title, "succesfully added")
 	defer f.Close()
 }
 
