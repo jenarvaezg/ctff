@@ -22,7 +22,8 @@ func challengeFromInterface(m map[string]interface{}) (c Challenge) {
 	c.Category = m["Category"].(string)
 	c.MaxScore = int(m["MaxScore"].(float64))
 	c.Creator = m["Creator"].(string)
-	c.UID = getSha512Hex(c.Title)
+	fmt.Println(c.Title)
+	c.UID = getSha512Hex(c.Title)[:8]
 	return
 }
 
@@ -76,7 +77,6 @@ func addNewChallenges() {
 	for k, v := range old_challenges {
 		if !v {
 			fmt.Println("GOT " + k)
-
 			wg.Add(1)
 			go func(alias string) {
 				defer wg.Done()
@@ -117,7 +117,6 @@ func extractChallenge(srcFile string) error {
 				return err
 			}
 		case tar.TypeReg:
-			fmt.Println("Name: ", name)
 			f, err := os.Create("/tmp/" + name)
 			if err != nil {
 				f.Close()
@@ -127,7 +126,6 @@ func extractChallenge(srcFile string) error {
 			io.Copy(f, tarReader)
 			f.Close()
 		default:
-			fmt.Println(header.Typeflag, tar.TypeReg)
 			return errors.New("Weird header: " + string(header.Typeflag) + " in file " + name)
 		}
 
@@ -135,31 +133,31 @@ func extractChallenge(srcFile string) error {
 	return nil
 }
 
-func installChallenges(challenges []string) {
+func installChallenges(aliases []string) {
 	var wg sync.WaitGroup
 
-	for _, challenge := range challenges {
-		if !strings.HasSuffix(challenge, ".ctff") {
-			fmt.Println(challenge, "needs to be a .ctff file")
+	for _, alias := range aliases {
+		if !strings.HasSuffix(alias, ".ctff") {
+			fmt.Println(alias, "needs to be a .ctff file")
 			continue
 		}
 		wg.Add(1)
-		go func(challenge string) {
+		go func(_alias string) {
 			defer wg.Done()
-			err := extractChallenge(challenge)
+			err := extractChallenge(_alias)
 			if err != nil {
 				fmt.Println(err)
 				return
 			}
 
-			tmpDirName := "/tmp/" + challenge[:len(challenge)-len(".ctff")]
+			tmpDirName := "/tmp/" + _alias[:len(_alias)-len(".ctff")]
 			c, err := challengeFromInfoJSON(tmpDirName)
 			if err != nil {
 				fmt.Println(err)
 				return
 			}
 			if ChallengeExists(c.UID) {
-				fmt.Println("CHALLENGE "+challenge, "ALREADY EXISTS")
+				fmt.Println("CHALLENGE "+_alias, "ALREADY EXISTS")
 				return
 			}
 			if err := c.addChallenge(); err != nil {
@@ -168,7 +166,7 @@ func installChallenges(challenges []string) {
 			}
 			os.Rename(tmpDirName, ChallengesPath+"/"+c.Alias)
 
-		}(challenge)
+		}(alias)
 	}
 	wg.Wait()
 

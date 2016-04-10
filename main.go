@@ -14,6 +14,8 @@ const (
 	run
 	install
 	export
+	remove
+	list
 )
 
 func setupRouter(r *mux.Router) {
@@ -40,7 +42,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if mode := checkArgs(); mode == run {
+	switch checkArgs() {
+	case run:
 		r := mux.NewRouter()
 		setupRouter(r)
 		log.Print("RUNNING")
@@ -48,12 +51,20 @@ func main() {
 		if err != nil {
 			log.Fatal("ListenAndServe: ", err)
 		}
-	} else if mode == setup {
+	case setup:
 		addNewChallenges()
-	} else if mode == install {
+	case install:
 		installChallenges(os.Args[2:])
-	} else if mode == export {
+	case export:
 		exportChallenges(os.Args[2:])
+	case remove:
+		removeChallenges(os.Args[2:])
+	case list:
+		for _, alias := range GetAllChallengeAliases() {
+			fmt.Println(alias)
+		}
+	default:
+		usage()
 	}
 
 }
@@ -69,6 +80,9 @@ func checkArgs() int {
 	if os.Args[1] == "run" {
 		return run
 	}
+	if os.Args[1] == "list" {
+		return list
+	}
 	if len(os.Args) < 3 {
 		usage()
 	}
@@ -77,6 +91,9 @@ func checkArgs() int {
 	}
 	if os.Args[1] == "export" {
 		return export
+	}
+	if os.Args[1] == "remove" {
+		return remove
 	}
 	return -1
 }

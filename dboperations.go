@@ -98,12 +98,9 @@ func (c Challenge) AddToEnvironment() error {
 			}
 			f.Chmod(0777)
 			f.Close()
-		} else {
-			fmt.Println(err)
-			fmt.Println("File", path+fName, "alredy exists, make sure I can execute it!")
 		}
-
 	}
+	fmt.Println(c.UID)
 	f, err := os.Create(path + "/your_ID_is_" + c.UID)
 	f.Close()
 	return nil
@@ -300,6 +297,7 @@ func GetChallenge(UID string) (c Challenge, err error) {
 	checkErr(err)
 
 	rows, err := stmt.Query(UID)
+	checkErr(err)
 	if !rows.Next() {
 		err = errors.New("Not found")
 		return
@@ -312,7 +310,7 @@ func GetChallenge(UID string) (c Challenge, err error) {
 
 func ChallengeExists(UID string) bool {
 	_, err := GetChallenge(UID)
-	return err != nil
+	return err == nil
 }
 
 func AddChallenge(c Challenge) {
@@ -346,6 +344,16 @@ func getChallengeByAlias(alias string) (c Challenge, err error) {
 	err = rows.Scan(&c.Title, &s, &c.MaxScore, &c.Alias, &c.Category, &c.UID, &c.Creator)
 	c.Description = template.HTML(s)
 	return
+}
+
+func RemoveChallenge(UID string) {
+	db, err := sql.Open("mysql", DBLoginString)
+	checkErr(err)
+	defer db.Close()
+	stmt, err := db.Prepare("DELETE FROM challenges WHERE UID = ?")
+	checkErr(err)
+	_, err = stmt.Exec(UID)
+	checkErr(err)
 }
 
 func GetAllChallengeAliases() (aliases []string) {

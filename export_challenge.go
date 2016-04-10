@@ -28,7 +28,6 @@ func TarGzWrite(_path string, tw *tar.Writer, fi os.FileInfo) {
 	h := new(tar.Header)
 	h.Name = _path[len(ChallengesPath+"/"):]
 	h.Size = fi.Size()
-	fmt.Println(fi.Mode())
 	h.Mode = int64(fi.Mode())
 	h.ModTime = fi.ModTime()
 	h.Typeflag = tar.TypeReg
@@ -60,7 +59,6 @@ func IterDirectory(dirPath string, tw *tar.Writer) {
 		if fi.IsDir() {
 			IterDirectory(curPath, tw)
 		} else {
-			fmt.Printf("adding... %s\n", curPath)
 			TarGzWrite(curPath, tw, fi)
 		}
 	}
@@ -81,8 +79,6 @@ func tarGz(outFilePath string, inPath string) {
 	defer tw.Close()
 
 	IterDirectory(inPath, tw)
-
-	fmt.Println("tar.gz ok")
 }
 
 func generateJSON(challengeAlias string) error {
@@ -101,22 +97,25 @@ func generateJSON(challengeAlias string) error {
 	return nil
 }
 
-func exportChallenges(challenges []string) {
+func exportChallenges(aliases []string) {
 	var wg sync.WaitGroup
 
-	for _, challenge := range challenges {
+	for _, alias := range aliases {
 		wg.Add(1)
-		go func(challenge string) {
-			targetFilePath := challenge + ".ctff"
-			challengeDirPath := ChallengesPath + "/" + challenge
-			fmt.Println(targetFilePath, challengeDirPath)
+		go func(_alias string) {
+			defer wg.Done()
+			fmt.Println("Trying to export " + _alias)
+			if _, err := getChallengeByAlias(_alias); err != nil {
+				fmt.Println("Challenge:", _alias, "does not exist")
+				return
+			}
+			targetFilePath := _alias + ".ctff"
+			challengeDirPath := ChallengesPath + "/" + _alias
 			if _, err := os.Stat(challengeDirPath + "/info.json"); os.IsNotExist(err) {
-				fmt.Println("POLLAS")
-				generateJSON(challenge)
+				generateJSON(_alias)
 			}
 			tarGz(targetFilePath, strings.TrimRight(challengeDirPath, "/"))
-			wg.Done()
-		}(challenge)
+		}(alias)
 	}
 	wg.Wait()
 
