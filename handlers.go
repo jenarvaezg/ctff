@@ -348,9 +348,11 @@ func handlerStatic(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	_, ok := vars["challenge_id"]
 	if !ok {
+		log.Println(CTF2Path + r.URL.Path)
 		http.ServeFile(w, r, CTF2Path+r.URL.Path)
 		return
 	}
+	log.Println("POR AQUI")
 	UID := vars["challenge_id"]
 	resource, ok := vars["static_element"]
 	c, err := GetChallenge(UID)

@@ -91,8 +91,9 @@ func (c Challenge) AddToEnvironment() error {
 
 	for _, fName := range filesToCreate {
 		if _, err := os.Stat(path + fName); os.IsNotExist(err) {
-			f, err := os.Open(path + fName)
+			f, err := os.Create(path + fName)
 			if err != nil {
+				fmt.Println("AQUI!!!")
 				fmt.Println(err)
 				return err
 			}
@@ -107,12 +108,13 @@ func (c Challenge) AddToEnvironment() error {
 }
 
 func (c Challenge) addChallenge() error {
-	if c.Alias != "test" {
-		AddChallenge(c)
+	if c.Alias == "test" {
+		return nil
 	}
 	if err := c.AddToEnvironment(); err != nil {
 		return err
 	}
+	AddChallenge(c)
 	fmt.Println("Challenge", c.Title, "succesfully added")
 	return nil
 }
@@ -203,7 +205,6 @@ func GetUser(username string) (u User, err error) {
 	scores, uids := GetSuccesfulAttempts(u.Email)
 	db, _ = sql.Open("mysql", DBLoginString)
 	u.Finished = make(map[string]Challenge_link)
-	fmt.Println("HEY HEY ", uids)
 	for i := 0; i < len(uids); i++ {
 		stmt, err = db.Prepare("SELECT Title FROM challenges WHERE " +
 			"UID=?")
