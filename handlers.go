@@ -195,7 +195,6 @@ func handlerUser(w http.ResponseWriter, r *http.Request) {
 	username := session.Values["username"]
 	target := mux.Vars(r)["username"]
 	user, err := GetUser(target)
-	fmt.Println(user)
 	if err != nil {
 		fmt.Fprintf(w, "User %s not found :(\n%s", target, err)
 		return
@@ -223,9 +222,6 @@ func handlerChallenges(w http.ResponseWriter, r *http.Request) {
 	checkLogged(w, r)
 	challenges := GetChallengesLinks()
 	t, _ := template.ParseFiles("static/challenges.html")
-	for _, c := range challenges {
-		fmt.Println(c.Title, c.UID)
-	}
 	t.Execute(w, challenges)
 }
 
@@ -360,6 +356,5 @@ func handlerStatic(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	fmt.Println(ChallengesPath + "/" + c.Alias + "/static/" + resource)
 	http.ServeFile(w, r, ChallengesPath+"/"+c.Alias+"/static/"+resource)
 }
