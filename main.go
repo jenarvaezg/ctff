@@ -30,7 +30,7 @@ func setupRouter(r *mux.Router) {
 	r.HandleFunc("/logout", handlerLogout)
 	r.HandleFunc("/success", handlerSuccess)
 	r.HandleFunc("/ranking", handlerRanking)
-	r.HandleFunc("/add_challenge", handlerAddChallenge)
+	//r.HandleFunc("/add_challenge", handlerAddChallenge)
 	r.HandleFunc("/static/{folder}/{element}", handlerStatic)
 	r.HandleFunc("/challenge/{challenge_id}/static/{static_element}", handlerStatic)
 
@@ -99,6 +99,6 @@ func checkArgs() int {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: ctff [setup|run|install ctff_file| export challenge_alias]")
+	fmt.Fprintln(os.Stderr, "usage: ctff [list|setup|run|remove ctff_file|install ctff_file|export challenge_alias]")
 	os.Exit(1)
 }

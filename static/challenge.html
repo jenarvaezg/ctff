@@ -26,18 +26,7 @@
 					<ul class="nav navbar-nav">
 						<li ><a href="/user">Users<span class="sr-only">(current)</span></a></li>
 						<li><a href="/ranking">Ranking</a></li>
-						<li class="dropdown active">
-							<a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Challenges<span class="caret"></span></a>
-							<ul class="dropdown-menu">
-								<li><a href="/challenge">All</a></li>
-								<li><a href="#">Another action</a></li>
-								<li><a href="#">Something else here</a></li>
-								<li role="separator" class="divider"></li>
-								<li><a href="#">Separated link</a></li>
-								<li role="separator" class="divider"></li>
-								<li><a href="#">One more separated link</a></li>
-							</ul>
-						</li>
+						<li><a href="/challenge">Challenges</a></li>
 					</ul>
 					<ul class="nav navbar-nav navbar-right">
 						<li><a href="/logout">Sign Off</a></li>
@@ -48,21 +37,24 @@
 		</nav>
 		<div class="jumbotron">
 			<div class="container">
-				<H1>{{.Title}}</H1>
-				<H2>Challenge info:</H2><br>
+				<div class="row"><H1>{{.Title}}</H1></div>
+				<div class="row"><H2>Challenge info:</H2><br></div>
 				<ul>
-					<li>MaxPoints: {{.MaxScore}}</li>
-					<li>Description: {{.Description}}</li>
+				<div class="row">	<li>MaxPoints: {{.MaxScore}}</li></div>
+				<div class="row">	<li>Description: {{.Description}}</li></div>
 				</ul>
 				<form action="/challenge/{{ .UID }}" method="post">
-					{{if .LaunchText}}
-					{{.LaunchText}}<br>
-					<button class="btn btn-primary btn-lg" role="button" name="stop" type="submit" value="stop">STOP</button><br>
-					{{else}}
-					<button class="btn btn-primary btn-lg" role="button" name="launch" type="submit" value="launch">LAUNCH</button><br>
+					{{if .LaunchText}}					
+					<div class="row">{{.LaunchText}}</div>
+						<div class="row"><button class="btn btn-primary btn-danger btn-lg" role="button" name="stop" type="submit" value="stop">STOP</button>
+						<input class="btn btn-primary btn-success btn-lg" type="submit" value="Submit">
+						<input type="text" name="solution"></div>
+					{{else}}						
+						<button class="btn btn-primary btn-lg" role="button" name="launch" type="submit" value="launch">LAUNCH</button>
 					{{end}}					
-					<input type="text" name="solution">
-					<input type="submit" value="Submit">
+						
+						
+					</div>	
 				</form>
 			</div>
 		</div>		

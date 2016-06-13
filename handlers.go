@@ -287,13 +287,11 @@ func handlerSuccess(w http.ResponseWriter, r *http.Request) {
 	session, _ := store.Get(r, "challenge")
 	UID, ok := session.Values["challenge"].(string)
 	if !ok {
-		fmt.Println("NOT OK")
 		http.Redirect(w, r, "/", http.StatusFound)
 	}
 	session.Options = &sessions.Options{MaxAge: -1, Path: "/"}
 	session.Save(r, w)
 	session = checkLogged(w, r)
-	fmt.Println(session)
 	username := session.Values["username"].(string)
 	challenge, err := GetChallenge(UID)
 	if err != nil {
@@ -330,13 +328,11 @@ func handlerAddChallenge(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Println("EEEEEEEEEh")
 		t.Execute(w, challenge)
 	}
 }
 
 func handlerStatic(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("HEYA")
 	if strings.Contains(r.URL.Path, "..") {
 		http.NotFound(w, r)
 		return
@@ -348,7 +344,6 @@ func handlerStatic(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, CTF2Path+r.URL.Path)
 		return
 	}
-	log.Println("POR AQUI")
 	UID := vars["challenge_id"]
 	resource, ok := vars["static_element"]
 	c, err := GetChallenge(UID)

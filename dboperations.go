@@ -93,7 +93,6 @@ func (c Challenge) AddToEnvironment() error {
 		if _, err := os.Stat(path + fName); os.IsNotExist(err) {
 			f, err := os.Create(path + fName)
 			if err != nil {
-				fmt.Println("AQUI!!!")
 				fmt.Println(err)
 				return err
 			}
@@ -101,7 +100,6 @@ func (c Challenge) AddToEnvironment() error {
 			f.Close()
 		}
 	}
-	fmt.Println(c.UID)
 	f, err := os.Create(path + "/your_ID_is_" + c.UID)
 	f.Close()
 	return nil
@@ -263,13 +261,35 @@ func GetRanking() (users []User) {
 * Challenge operations *
 ***********************/
 
+func getSuccessAndTries(UID string, db *sql.DB) (nsuccess, ntries int, err error) {
+	stmt, err := db.Prepare("SELECT COUNT(*) FROM attempts WHERE UID=?")
+	checkErr(err)
+	rows, err := stmt.Query(UID)
+	checkErr(err)
+	if !rows.Next() {
+		err = errors.New("SuccessAndTries: no rows")
+		return
+	}
+	rows.Scan(&ntries)
+	stmt, err = db.Prepare("SELECT COUNT(*) FROM attempts WHERE UID=? AND Succesful")
+	checkErr(err)
+	rows, err = stmt.Query(UID)
+	checkErr(err)
+	if !rows.Next() {
+		err = errors.New("SuccessAndTries: no rows")
+		return
+	}
+	rows.Scan(&nsuccess)
+	return
+}
+
 func GetChallengesLinks() (challenges []Challenge_link) {
 	db, err := sql.Open("mysql", DBLoginString)
 	checkErr(err)
 	defer db.Close()
 
 	stmt, err := db.Prepare(
-		"SELECT Title, MaxScore, Ntries, NSuccess, UID  FROM challenges")
+		"SELECT Title, MaxScore, UID FROM challenges")
 	checkErr(err)
 
 	rows, err := stmt.Query()
@@ -277,8 +297,10 @@ func GetChallengesLinks() (challenges []Challenge_link) {
 
 	for rows.Next() {
 		var c Challenge_link
-		err = rows.Scan(&c.Title, &c.Score,
-			&c.NTries, &c.NSuccess, &c.UID)
+		err = rows.Scan(&c.Title, &c.Score, &c.UID)
+		checkErr(err)
+
+		c.NSuccess, c.NTries, err = getSuccessAndTries(c.UID, db)
 		checkErr(err)
 		if c.NTries != 0 {
 			c.SuccessPercentage = 100 * float32(c.NSuccess) / float32(c.NTries)
@@ -389,7 +411,6 @@ func AddAtempt(email string, UID string, succesful bool, score int) {
 	checkErr(err)
 
 	date := time.Now().Format("20060102")
-	fmt.Println(date)
 
 	_, err = stmt.Exec(date, email, UID, succesful, score)
 	checkErr(err)
