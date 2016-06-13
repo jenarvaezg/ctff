@@ -1,0 +1,28 @@
+{
+	"ImportPath": "ctff",
+	"GoVersion": "go1.6",
+	"GodepVersion": "v60",
+	"Deps": [
+		{
+			"ImportPath": "github.com/go-sql-driver/mysql",
+			"Comment": "v1.2-188-g66312f7",
+			"Rev": "66312f7fe2678aa0f5ec770f96702f4c4ec5aa8e"
+		},
+		{
+			"ImportPath": "github.com/gorilla/context",
+			"Rev": "1ea25387ff6f684839d82767c1733ff4d4d15d0a"
+		},
+		{
+			"ImportPath": "github.com/gorilla/mux",
+			"Rev": "acf3be1b335c8ce30b2c8d51300984666f0ceefa"
+		},
+		{
+			"ImportPath": "github.com/gorilla/securecookie",
+			"Rev": "8dacca26977607e637262eb66b15b7d39f2d3009"
+		},
+		{
+			"ImportPath": "github.com/gorilla/sessions",
+			"Rev": "8cd570d8b4ed84b18bca9d8c3ae2db55885ccd8b"
+		}
+	]
+}
