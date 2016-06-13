@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
 )
 
@@ -29,7 +30,7 @@ type user struct {
 	Score    int
 }
 
-var store = sessions.NewCookieStore([]byte("EEEEH"))
+var store = sessions.NewCookieStore(securecookie.GenerateRandomKey(64), securecookie.GenerateRandomKey(32))
 
 func challengeFromForm(form url.Values) (Challenge, error) {
 	var err error
