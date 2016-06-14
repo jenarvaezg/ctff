@@ -414,17 +414,8 @@ func AddAtempt(email string, UID string, succesful bool, score int) {
 
 	_, err = stmt.Exec(date, email, UID, succesful, score)
 	checkErr(err)
-	stmt, _ = db.Prepare("SELECT NTries from challenges WHERE " +
-		"UID=?")
-	rows, _ := stmt.Query(UID)
-	rows.Next()
-	var ntries int
-	rows.Scan(&ntries)
-	ntries++
-	stmt, _ = db.Prepare("UPDATE challenges SET NTries=? WHERE UID=?")
-	stmt.Exec(ntries, UID)
 
-	if succesful {
+	/*if succesful {
 		stmt, _ = db.Prepare("SELECT NSuccess from challenges WHERE " +
 			"UID=?")
 		rows, _ := stmt.Query(UID)
@@ -434,7 +425,7 @@ func AddAtempt(email string, UID string, succesful bool, score int) {
 		nsuccess++
 		stmt, err = db.Prepare("UPDATE challenges SET NSuccess=? WHERE UID=?")
 		stmt.Exec(nsuccess, UID)
-	}
+	}*/
 
 }
 
